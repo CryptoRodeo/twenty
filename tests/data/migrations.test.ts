@@ -1,4 +1,4 @@
-import { MIGRATIONS, runMigrations, schemaVersion } from '@/data/migrations';
+import { MIGRATIONS, runMigrations, schemaVersion, type Migration } from '@/data/migrations';
 import { createTestDb, type TestDb } from '../helpers/testDb';
 
 let db: TestDb;
@@ -44,6 +44,24 @@ describe('runMigrations', () => {
     const row = ['s1', 'SIX_COUNT', '2026-10-07T06:00:00.000Z', 1200, 100, 100, 7, 'GUIDED', null];
     await db.runAsync(insert, row);
     await expect(db.runAsync(insert, row)).rejects.toThrow();
+  });
+
+  it('rolls back a failed migration: no partial effect and no bumped version', async () => {
+    const broken: Migration[] = [
+      {
+        version: 1,
+        up: [
+          'CREATE TABLE probe (id INTEGER PRIMARY KEY);',
+          'THIS IS NOT VALID SQL;',
+        ],
+      },
+    ];
+    await expect(runMigrations(db, broken)).rejects.toThrow();
+    expect(await schemaVersion(db)).toBe(0);
+    const rows = await db.getAllAsync<{ name: string }>(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='probe'",
+    );
+    expect(rows).toEqual([]);
   });
 
   it('nulls a planned session link when its session is deleted', async () => {

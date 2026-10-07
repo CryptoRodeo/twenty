@@ -63,15 +63,29 @@ export async function schemaVersion(db: Db): Promise<number> {
   return rows[0]?.version ?? 0;
 }
 
-/** Applies pending migrations in order and returns the resulting version. */
-export async function runMigrations(db: Db): Promise<number> {
+/**
+ * Applies pending migrations in order and returns the resulting version. Each
+ * migration's statements and its version bump run in one transaction, so a
+ * failure leaves neither a partial schema nor a bumped version behind.
+ */
+export async function runMigrations(
+  db: Db,
+  migrations: Migration[] = MIGRATIONS,
+): Promise<number> {
   let current = await schemaVersion(db);
-  for (const migration of MIGRATIONS) {
+  for (const migration of migrations) {
     if (migration.version <= current) continue;
-    for (const statement of migration.up) {
-      await db.execAsync(statement);
+    await db.execAsync('BEGIN');
+    try {
+      for (const statement of migration.up) {
+        await db.execAsync(statement);
+      }
+      await db.runAsync('UPDATE schema_version SET version = ?', [migration.version]);
+      await db.execAsync('COMMIT');
+    } catch (error) {
+      await db.execAsync('ROLLBACK');
+      throw error;
     }
-    await db.runAsync('UPDATE schema_version SET version = ?', [migration.version]);
     current = migration.version;
   }
   return current;
