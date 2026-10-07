@@ -10,6 +10,9 @@ export const GRADUATION_ORDER = 10;
 
 export const MOVEMENTS: readonly Movement[] = ['SIX_COUNT', 'NAVY_SEAL'];
 
+/** Zero reps per movement. Copy before mutating. */
+export const ZERO_REPS: MovementMap<number> = { SIX_COUNT: 0, NAVY_SEAL: 0 };
+
 export const MOVEMENT_LABEL: MovementMap<string> = {
   SIX_COUNT: '6-count',
   NAVY_SEAL: 'Navy Seal',

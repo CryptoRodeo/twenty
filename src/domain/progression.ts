@@ -4,6 +4,7 @@ import {
   LANDMARK_DURATION_SEC,
   LEVELS,
   MOVEMENTS,
+  ZERO_REPS,
   levelByOrder,
   nextLevelAfter,
   type Level,
@@ -45,15 +46,13 @@ export interface ProgressionState {
   reachedAt: Record<number, string>;
 }
 
-const ZERO: MovementMap<number> = { SIX_COUNT: 0, NAVY_SEAL: 0 };
-
 /** Only an exactly-20-minute session can unlock a landmark. `kind` is informational. */
 export function isLandmarkEligible(s: Session): boolean {
   return s.durationSec === LANDMARK_DURATION_SEC;
 }
 
 export function bestLandmark(sessions: Session[], baseline: Baseline | null): MovementMap<number> {
-  const best: MovementMap<number> = { ...(baseline?.bestLandmark ?? ZERO) };
+  const best: MovementMap<number> = { ...(baseline?.bestLandmark ?? ZERO_REPS) };
   for (const s of sessions) {
     if (!isLandmarkEligible(s)) continue;
     if (s.completedReps > best[s.movement]) best[s.movement] = s.completedReps;
@@ -194,7 +193,7 @@ export function computeProgression(input: ProgressionInput): ProgressionState {
  */
 function reachedAtMap(sessions: Session[], baseline: Baseline | null): Record<number, string> {
   const out: Record<number, string> = {};
-  const running: MovementMap<number> = { ...(baseline?.bestLandmark ?? ZERO) };
+  const running: MovementMap<number> = { ...(baseline?.bestLandmark ?? ZERO_REPS) };
   const repOrder = (b: MovementMap<number>): number =>
     Math.min(highestOrderMetByReps(b) ?? -1, GRADUATION_ORDER - 1);
   let reached = repOrder(running);
