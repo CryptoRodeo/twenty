@@ -1,0 +1,45 @@
+{
+  "name": "twenty",
+  "version": "1.0.0",
+  "main": "expo-router/entry",
+  "dependencies": {
+    "@expo/log-box": "^57.0.4",
+    "@expo/metro-runtime": "~57.0.16",
+    "expo": "~57.0.27",
+    "expo-audio": "~57.0.5",
+    "expo-constants": "~57.0.21",
+    "expo-haptics": "~57.0.3",
+    "expo-keep-awake": "~57.0.2",
+    "expo-linking": "~57.0.12",
+    "expo-router": "~57.0.25",
+    "expo-sqlite": "~57.0.4",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0",
+    "react-native-svg": "15.15.4",
+    "zustand": "^4.5.7"
+  },
+  "devDependencies": {
+    "@testing-library/react-native": "^13.3.3",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/jest": "^29.5.14",
+    "@types/react": "~19.2.2",
+    "better-sqlite3": "12.9.0",
+    "jest": "^29.7.0",
+    "jest-expo": "~57.0.5",
+    "react-dom": "^19.2.3",
+    "react-test-renderer": "^19.2.3",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "private": true
+}
