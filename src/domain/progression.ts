@@ -187,10 +187,17 @@ export function computeProgression(input: ProgressionInput): ProgressionState {
   };
 }
 
+/**
+ * Level order first reached at each timestamp. Rep-based orders stop at 4B:
+ * Graduation (order 10) is stamped only from a qualifying graduation week,
+ * at that week's confirmedAt, so landmarks in different weeks never unlock it.
+ */
 function reachedAtMap(sessions: Session[], baseline: Baseline | null): Record<number, string> {
   const out: Record<number, string> = {};
   const running: MovementMap<number> = { ...(baseline?.bestLandmark ?? ZERO) };
-  let reached = highestOrderMetByReps(running) ?? -1;
+  const repOrder = (b: MovementMap<number>): number =>
+    Math.min(highestOrderMetByReps(b) ?? -1, GRADUATION_ORDER - 1);
+  let reached = repOrder(running);
 
   const ordered = [...sessions]
     .filter(isLandmarkEligible)
@@ -198,10 +205,13 @@ function reachedAtMap(sessions: Session[], baseline: Baseline | null): Record<nu
 
   for (const s of ordered) {
     if (s.completedReps > running[s.movement]) running[s.movement] = s.completedReps;
-    const now = highestOrderMetByReps(running) ?? -1;
+    const now = repOrder(running);
     for (let o = reached + 1; o <= now; o += 1) out[o] = s.startedAt;
     if (now > reached) reached = now;
   }
+
+  const gradWeek = findGraduationWeek(sessions, baseline);
+  if (gradWeek) out[GRADUATION_ORDER] = gradWeek.confirmedAt;
   return out;
 }
 

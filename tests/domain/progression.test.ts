@@ -116,6 +116,23 @@ describe('computeProgression', () => {
     expect(state.graduationWeekStart).toBeNull();
   });
 
+  it('records no order-10 REACHED event or reachedAt entry for cross-week landmarks', () => {
+    const input = {
+      sessions: [
+        makeSession({ movement: 'SIX_COUNT', completedReps: 325, startedAt: '2026-09-28T06:00:00.000Z' }),
+        makeSession({ movement: 'NAVY_SEAL', completedReps: 150, startedAt: '2026-10-06T06:00:00.000Z' }),
+      ],
+      baseline: null,
+      now: NOW,
+    };
+    expect(computeProgression(input).reachedAt[10]).toBeUndefined();
+    const events = computeLevelEvents(input);
+    expect(events.find((e) => e.levelOrder === 10)).toBeUndefined();
+    expect(events.filter((e) => e.type === 'REACHED').map((e) => e.levelOrder)).toEqual([
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+    ]);
+  });
+
   it('graduates when both landmarks land in the same Mon–Sun week', () => {
     const state = computeProgression({
       sessions: [
@@ -159,6 +176,43 @@ describe('computeProgression', () => {
     });
     expect(state.currentLevel!.name).toBe('4B');
     expect(state.graduated).toBe(false);
+  });
+
+  it('floors the level at a manually entered baseline with no landmarks', () => {
+    const state = computeProgression({
+      sessions: [],
+      baseline: makeBaseline({ startLevelOrder: 5 }),
+      now: NOW,
+    });
+    expect(state.currentLevelOrder).toBe(5);
+    expect(state.currentLevel!.name).toBe('2B');
+  });
+
+  it('caps a manual Graduation baseline at 4B without a graduation week', () => {
+    const state = computeProgression({
+      sessions: [],
+      baseline: makeBaseline({ startLevelOrder: 10 }),
+      now: NOW,
+    });
+    expect(state.currentLevelOrder).toBe(9);
+    expect(state.currentLevel!.name).toBe('4B');
+    expect(state.graduated).toBe(false);
+  });
+
+  it('drops a baseline graduation whose week expired more than 30 days ago to 4B', () => {
+    const state = computeProgression({
+      sessions: [],
+      baseline: makeBaseline({
+        startLevelOrder: 10,
+        bestLandmark: { SIX_COUNT: 325, NAVY_SEAL: 150 },
+        graduationWeekStart: '2026-08-03',
+      }),
+      now: NOW,
+    });
+    expect(state.currentLevelOrder).toBe(9);
+    expect(state.currentLevel!.name).toBe('4B');
+    expect(state.graduated).toBe(false);
+    expect(state.daysUntilGraduationExpiry).toBeLessThan(0);
   });
 
   it('graduates from a baseline that names the qualifying week', () => {
