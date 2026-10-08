@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { runMigrations } from '@/data/migrations';
 import { listWeek, saveWeek } from '@/data/plannedRepo';
 import { listLevelEvents } from '@/data/levelEventsRepo';
@@ -569,5 +571,91 @@ describe('planning after a natural level-up', () => {
     for (const p of week) {
       expect(p.targetReps).toBe(Math.max(Math.ceil(oneB[p.movement] * FIRST_WEEK_FRACTION), reps[p.movement]));
     }
+  });
+});
+
+describe('explicit seeding restarts this week (C1)', () => {
+  afterEach(() => jest.useRealTimers());
+
+  /** The app was opened in an earlier week, so that week was planned at 1A and this week follows it. */
+  async function openedLastWeekThenThisWeek(): Promise<void> {
+    const sunday = new Date(2026, 9, 4, 7, 0);
+    jest.useFakeTimers({ now: sunday, doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval'] });
+    await useAppStore.getState().ensureWeek(sunday);
+    jest.setSystemTime(NOW);
+    await useAppStore.getState().ensureWeek(NOW);
+    const week = await listWeek(db, '2026-10-05');
+    expect(week.every((p) => p.targetReps === LEVELS[0]!.targets[p.movement])).toBe(true);
+  }
+
+  it('Home flow (zero baseline, then target last) opens this week at 1C first-week targets', async () => {
+    await openedLastWeekThenThisWeek();
+    await useAppStore.getState().importBaseline(makeBaseline({
+      startLevelOrder: null, bestLandmark: { SIX_COUNT: 0, NAVY_SEAL: 0 },
+    }));
+    await useAppStore.getState().setTargetLevel(2);
+    expectFirstWeekTargets(await listWeek(db, '2026-10-05'), 2);
+  });
+
+  it('a baseline saved after choosing 1C keeps the 1C first-week targets', async () => {
+    await openedLastWeekThenThisWeek();
+    await useAppStore.getState().setTargetLevel(2);
+    await useAppStore.getState().importBaseline(makeBaseline({
+      startLevelOrder: null, bestLandmark: { SIX_COUNT: 0, NAVY_SEAL: 0 },
+    }));
+    expectFirstWeekTargets(await listWeek(db, '2026-10-05'), 2);
+  });
+
+  it('a baseline import lifts targets even when last week was planned', async () => {
+    await openedLastWeekThenThisWeek();
+    const best = LEVELS[9]!.targets;
+    await useAppStore.getState().importBaseline(makeBaseline({ startLevelOrder: 9, bestLandmark: { ...best } }));
+    const grad = LEVELS[GRADUATION_ORDER]!.targets;
+    for (const p of await listWeek(db, '2026-10-05')) {
+      expect(p.targetReps).toBe(Math.max(Math.ceil(grad[p.movement] * FIRST_WEEK_FRACTION), best[p.movement]));
+    }
+  });
+
+  it('a CSV import lifts targets even when last week was planned', async () => {
+    await openedLastWeekThenThisWeek();
+    const oneD = LEVELS[3]!.targets;
+    await useAppStore.getState().importSessions((['SIX_COUNT', 'NAVY_SEAL'] as const).map((movement, i) => ({
+      movement, startedAt: new Date(2026, 8, 20 + i, 12).toISOString(), durationSec: 1200,
+      targetReps: oneD[movement], completedReps: oneD[movement], effort: 8, kind: 'LANDMARK' as const,
+    })));
+    const twoA = LEVELS[4]!.targets;
+    for (const p of await listWeek(db, '2026-10-05')) {
+      expect(p.targetReps).toBe(Math.max(Math.ceil(twoA[p.movement] * FIRST_WEEK_FRACTION), oneD[p.movement]));
+    }
+  });
+});
+
+describe('re-plan keeps restored row ids (I1)', () => {
+  afterEach(() => jest.useRealTimers());
+
+  const readmeJson = (): string => {
+    const readme = readFileSync(join(__dirname, '..', '..', 'README.md'), 'utf8');
+    return /```json\n([\s\S]*?)```/.exec(readme)![1]!;
+  };
+
+  it('restoring the README example leaves exactly its one Monday slot', async () => {
+    jest.useFakeTimers({ now: NOW, doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval'] });
+    await useAppStore.getState().restoreBackup(readmeJson());
+    const week = await listWeek(db, '2026-10-05');
+    expect(week.map((p) => [p.id, p.dayOfWeek, p.sessionId])).toEqual([['p1', 0, 's1']]);
+  });
+
+  it('updates open rows with foreign ids in place and never adds rows', async () => {
+    jest.useFakeTimers({ now: NOW, doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval'] });
+    const file = JSON.parse(readmeJson()) as { planned: Record<string, unknown>[] };
+    file.planned.push({
+      id: 'p2', weekStart: '2026-10-05', dayOfWeek: 1, movement: 'NAVY_SEAL', targetReps: 7, isTestDay: false,
+    });
+    await useAppStore.getState().restoreBackup(JSON.stringify(file));
+    await useAppStore.getState().setTargetLevel(2);
+    const week = await listWeek(db, '2026-10-05');
+    expect(week.map((p) => [p.id, p.dayOfWeek])).toEqual([['p1', 0], ['p2', 1]]);
+    expect(week[0]!.targetReps).toBe(100); // linked row untouched
+    expect(week[1]!.targetReps).toBe(Math.ceil(LEVELS[2]!.targets.NAVY_SEAL * FIRST_WEEK_FRACTION));
   });
 });

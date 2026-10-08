@@ -46,11 +46,16 @@ export interface AppState {
   editSession: (s: Session) => Promise<void>;
   removeSession: (id: string) => Promise<void>;
   updateSettings: (patch: Partial<Settings>) => Promise<void>;
-  /** Choose the level being worked on, then re-plan this week's open slots. Completes nothing. */
+  /**
+   * Choose the level being worked on, then restart this week's open slots with
+   * the first-week rule. Completes nothing. Seeding flows call this LAST.
+   */
   setTargetLevel: (order: number) => Promise<void>;
   /** Replace all data from a JSON backup, then re-derive levels and plan this week. */
   restoreBackup: (json: string) => Promise<void>;
+  /** Save the baseline, then restart this week's open slots with the first-week rule. */
   importBaseline: (b: Baseline) => Promise<void>;
+  /** Append imported sessions, then restart this week's open slots with the first-week rule. */
   importSessions: (rows: NewSession[]) => Promise<void>;
   ensureWeek: (now: Date) => Promise<void>;
 }
@@ -115,32 +120,51 @@ async function buildWeek(
 /**
  * Replace the targets of this week's slots that no session is linked to.
  * Linked (done) rows are never touched. No-op when the week is unplanned.
- * Upserts in place (ids come from the existing layout), so a failure part-way
- * never leaves the week with fewer rows.
+ * Each open row is updated in place, matched by day (its id is kept), so
+ * rows are never added: a restored week whose ids do not follow the
+ * planner's pattern cannot gain a duplicate slot.
  */
 async function replanOpenSlots(
   db: Db, state: AppState, now: Date, opts: { restart?: boolean } = {},
 ): Promise<void> {
-  const weekStart = weekStartIso(now);
-  const existing = await listWeek(db, weekStart);
-  if (existing.length === 0) return;
-  const linkedIds = new Set(existing.filter((p) => p.sessionId !== undefined).map((p) => p.id));
+  const existing = await listWeek(db, weekStartIso(now));
+  const open = existing.filter((p) => p.sessionId === undefined);
+  if (open.length === 0) return;
   // Edit Week applies from next week: keep this week's day/movement layout.
   const layout = existing.map((p) => ({ dayOfWeek: p.dayOfWeek, movement: p.movement }));
   const fresh = await buildWeek(db, state, now, layout, opts.restart === true);
-  await saveWeek(db, fresh.filter((p) => !linkedIds.has(p.id)));
+  const updates: PlannedSession[] = [];
+  for (const row of open) {
+    const plan = fresh.find((f) => f.dayOfWeek === row.dayOfWeek && f.movement === row.movement);
+    if (plan) updates.push({ ...row, targetReps: plan.targetReps, isTestDay: plan.isTestDay });
+  }
+  await saveWeek(db, updates);
+}
+
+/** Plan this week when it has no rows yet. An existing (possibly hand-edited) week is never overwritten. */
+async function planWeekIfMissing(
+  db: Db, state: AppState, now: Date, opts: { restart?: boolean } = {},
+): Promise<boolean> {
+  if ((await listWeek(db, weekStartIso(now))).length > 0) return false;
+  await saveWeek(db, await buildWeek(db, state, now, state.settings.planDays, opts.restart === true));
+  return true;
 }
 
 /**
  * After history or baseline changes: rebuild level events, refresh state, then
  * re-plan this week's open slots (and plan the week if it does not exist yet).
+ * `restart` is for explicit seeding actions (baseline or CSV import): the
+ * targets planned before them were placeholders, so this week opens with the
+ * first-week rule. A restore keeps the backup's own progression.
  */
-async function settleDerivedState(db: Db, get: () => AppState): Promise<void> {
+async function settleDerivedState(
+  db: Db, get: () => AppState, opts: { restart?: boolean } = {},
+): Promise<void> {
   await reconcileLevelEvents(db, get().baseline, get().settings.targetLevelOrder);
   await get().reload();
-  // Targets planned before the import were 1A-level; re-plan the open slots.
-  await replanOpenSlots(db, get(), new Date());
-  await get().ensureWeek(new Date());
+  const now = new Date();
+  await replanOpenSlots(db, get(), now, opts);
+  await planWeekIfMissing(db, get(), now, opts);
   await get().reload();
 }
 
@@ -235,7 +259,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     await get().updateSettings({ targetLevelOrder: order });
     // An explicit choice restarts this week's open targets with the first-week rule.
-    await replanOpenSlots(db, get(), new Date(), { restart: true });
+    const now = new Date();
+    await replanOpenSlots(db, get(), now, { restart: true });
+    await planWeekIfMissing(db, get(), now, { restart: true });
     await get().reload();
   },
 
@@ -255,7 +281,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const db = requireDb(get());
     await saveBaseline(db, b);
     set({ baseline: b });
-    await settleDerivedState(db, get);
+    await settleDerivedState(db, get, { restart: true });
   },
 
   importSessions: async (rows) => {
@@ -264,7 +290,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     // The rows are committed: a failure past this point must not report a failed
     // import (a retry would duplicate them). The foreground ensureWeek / next launch heals.
     try {
-      await settleDerivedState(db, get);
+      await settleDerivedState(db, get, { restart: true });
     } catch {
       try { await get().reload(); } catch { /* intentionally ignored */ }
     }
@@ -272,12 +298,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   ensureWeek: async (now) => {
     const db = requireDb(get());
-    const weekStart = weekStartIso(now);
-    // An existing week (possibly hand-edited) is never overwritten.
-    if ((await listWeek(db, weekStart)).length > 0) return;
-
-    await saveWeek(db, await buildWeek(db, get(), now));
-    await get().reload();
+    if (await planWeekIfMissing(db, get(), now)) await get().reload();
   },
 }));
 
