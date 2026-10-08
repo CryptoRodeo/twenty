@@ -66,3 +66,24 @@ it('re-plans the week when the app returns to the foreground', async () => {
   expect(remove).toHaveBeenCalled();
   spy.mockRestore();
 });
+
+it('does not show the database error when a foreground re-plan fails', async () => {
+  mockState.ready = true;
+  mockState.ensureWeek.mockReset();
+  mockState.ensureWeek.mockResolvedValueOnce(undefined); // bootstrap
+  mockState.ensureWeek.mockRejectedValue(new Error('locked'));
+  const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+  let listener: ((status: string) => void) | undefined;
+  const spy = jest.spyOn(AppState, 'addEventListener').mockImplementation(((_: string, cb: (status: string) => void) => {
+    listener = cb;
+    return { remove: jest.fn() };
+  }) as never);
+  render(<RootLayout />);
+  await waitFor(() => expect(listener).toBeDefined());
+  await waitFor(() => expect(mockState.ensureWeek).toHaveBeenCalledTimes(1));
+  listener!('active');
+  await waitFor(() => expect(warn).toHaveBeenCalled());
+  expect(screen.queryByText(/Could not open the database/)).toBeNull();
+  spy.mockRestore();
+  warn.mockRestore();
+});

@@ -49,7 +49,12 @@ export default function TimerSummaryScreen() {
         effort,
         kind: params.kind as SessionKind,
       }, params.plannedId);
-      router.replace('/(tabs)');
+      const reached = useAppStore.getState().pendingLevelUp;
+      if (reached !== null) {
+        router.replace({ pathname: '/levelup', params: { order: String(reached) } });
+      } else {
+        router.replace('/(tabs)');
+      }
     } catch (e) {
       setSaving(false);
       setSaveError(e instanceof Error ? e.message : String(e));

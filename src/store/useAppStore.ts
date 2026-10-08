@@ -34,11 +34,14 @@ export interface AppState {
   levelEvents: LevelEvent[];
   settings: Settings;
   baseline: Baseline | null;
+  /** Level order just reached by the last saved session; the summary celebrates it. */
+  pendingLevelUp: number | null;
 
   init: (db: Db) => Promise<void>;
   reload: () => Promise<void>;
   /** `plannedId` is the slot the player started from, when there was one. */
   addSession: (input: NewSession, plannedId?: string) => Promise<Session>;
+  clearLevelUp: () => void;
   editSession: (s: Session) => Promise<void>;
   removeSession: (id: string) => Promise<void>;
   updateSettings: (patch: Partial<Settings>) => Promise<void>;
@@ -134,9 +137,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   levelEvents: [],
   settings: DEFAULT_SETTINGS,
   baseline: null,
+  pendingLevelUp: null,
 
   init: async (db) => {
-    set({ db });
+    set({ db, pendingLevelUp: null });
     await get().reload();
     set({ ready: true });
   },
@@ -155,6 +159,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   addSession: async (input, plannedId) => {
     const db = requireDb(get());
+    const before = selectProgression(get(), new Date(input.startedAt)).currentLevelOrder;
     const session: Session = { ...input, id: newId() };
     await insertSession(db, session);
 
@@ -170,6 +175,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     await reconcileLevelEvents(db, get().baseline, get().settings.targetLevelOrder);
     await get().reload();
+    const after = selectProgression(get(), new Date(input.startedAt)).currentLevelOrder;
+    if (after !== null && (before === null || after > before)) set({ pendingLevelUp: after });
     // A fresh install has no baseline, so its week could not be planned at launch;
     // the first session gives it history. ensureWeek never overwrites an existing week.
     // Best-effort: the session is already persisted, so a planning failure must not
@@ -181,6 +188,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     return session;
   },
+
+  clearLevelUp: () => set({ pendingLevelUp: null }),
 
   editSession: async (s) => {
     const db = requireDb(get());

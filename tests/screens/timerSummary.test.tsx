@@ -3,6 +3,7 @@ import TimerSummaryScreen from '../../app/timer/summary';
 
 const mockReplace = jest.fn();
 const mockAddSession = jest.fn().mockResolvedValue({ id: 'new' });
+let mockPendingLevelUp: number | null = null;
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ replace: mockReplace }),
@@ -12,16 +13,23 @@ jest.mock('expo-router', () => ({
     plannedId: 'slot-1',
   }),
 }));
-jest.mock('@/store/useAppStore', () => ({
-  useAppStore: (selector: (s: unknown) => unknown) =>
+jest.mock('@/store/useAppStore', () => {
+  const hook = (selector: (s: unknown) => unknown) =>
     selector({
       ready: true, addSession: mockAddSession, settings: { countInSec: 10 },
       sessions: [], baseline: null, planned: [],
-    }),
-  selectProgression: () => ({ nextTargets: { SIX_COUNT: { target: 325 }, NAVY_SEAL: { target: 150 } } }),
-}));
+    });
+  hook.getState = () => ({ pendingLevelUp: mockPendingLevelUp });
+  return {
+    useAppStore: hook,
+    selectProgression: () => ({ nextTargets: { SIX_COUNT: { target: 325 }, NAVY_SEAL: { target: 150 } } }),
+  };
+});
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockPendingLevelUp = null;
+});
 
 describe('timer summary', () => {
   it('pre-fills the reps the timer counted', () => {
@@ -83,5 +91,14 @@ describe('timer summary', () => {
     fireEvent.press(screen.getByLabelText('Discard workout'));
     expect(mockAddSession).not.toHaveBeenCalled();
     expect(mockReplace).toHaveBeenCalledWith('/(tabs)');
+  });
+
+  it('celebrates after a level-up instead of returning to the tabs', async () => {
+    mockPendingLevelUp = 3;
+    render(<TimerSummaryScreen />);
+    fireEvent.press(screen.getByLabelText('Save workout'));
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith({
+      pathname: '/levelup', params: { order: '3' },
+    }));
   });
 });

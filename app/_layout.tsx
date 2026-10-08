@@ -35,8 +35,10 @@ export default function RootLayout() {
     if (!ready) return undefined;
     const sub = AppState.addEventListener('change', (status) => {
       if (status !== 'active') return;
-      useAppStore.getState().ensureWeek(new Date()).catch((e: unknown) =>
-        setError(e instanceof Error ? e.message : String(e)));
+      // Not fatal: the database is open, and planning is retried on the next foreground.
+      useAppStore.getState().ensureWeek(new Date()).catch((e: unknown) => {
+        console.warn('Could not plan the week', e);
+      });
     });
     return () => sub.remove();
   }, [ready]);
@@ -53,6 +55,9 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="levelup" options={{ headerShown: false, gestureEnabled: false }} />
+        <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+        <Stack.Screen name="onboarding/import" options={{ title: 'Import progress' }} />
       </Stack>
       {(!ready || error !== null) && (
         <View style={styles.overlay} pointerEvents="auto">

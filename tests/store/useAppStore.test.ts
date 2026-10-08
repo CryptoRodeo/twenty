@@ -478,3 +478,36 @@ describe('setTargetLevel', () => {
     expect(useAppStore.getState().settings.targetLevelOrder).toBe(3);
   });
 });
+
+describe('pendingLevelUp', () => {
+  const add = (movement: 'SIX_COUNT' | 'NAVY_SEAL', reps: number) =>
+    useAppStore.getState().addSession({
+      movement, startedAt: NOW.toISOString(), durationSec: 1200,
+      targetReps: reps, completedReps: reps, effort: 7, kind: 'LANDMARK',
+    });
+
+  it('flags a new level and clears on demand', async () => {
+    await add('SIX_COUNT', 160);
+    expect(useAppStore.getState().pendingLevelUp).toBeNull(); // Navy Seal still at 0
+    await add('NAVY_SEAL', 60);
+    expect(useAppStore.getState().pendingLevelUp).toBe(3); // 1D
+    useAppStore.getState().clearLevelUp();
+    expect(useAppStore.getState().pendingLevelUp).toBeNull();
+  });
+
+  it('does not flag a session that reaches no new level', async () => {
+    await add('SIX_COUNT', 160);
+    await add('NAVY_SEAL', 60);
+    useAppStore.getState().clearLevelUp();
+    await add('SIX_COUNT', 150);
+    expect(useAppStore.getState().pendingLevelUp).toBeNull();
+  });
+
+  it('is reset by init', async () => {
+    await add('SIX_COUNT', 160);
+    await add('NAVY_SEAL', 60);
+    expect(useAppStore.getState().pendingLevelUp).toBe(3);
+    await useAppStore.getState().init(db);
+    expect(useAppStore.getState().pendingLevelUp).toBeNull();
+  });
+});
