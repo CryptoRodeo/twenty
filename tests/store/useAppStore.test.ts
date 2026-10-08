@@ -225,6 +225,32 @@ describe('importBaseline', () => {
   });
 });
 
+describe('importBaseline re-plan', () => {
+  afterEach(() => jest.useRealTimers());
+
+  it('re-plans unlinked slots from the baseline and keeps linked rows untouched', async () => {
+    jest.useFakeTimers({ now: NOW, doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval'] });
+    await useAppStore.getState().ensureWeek(NOW); // fresh install: 1A-level targets
+    expect((await listWeek(db, '2026-10-05')).every((p) => p.targetReps === 1)).toBe(true);
+    const monday = useAppStore.getState().planned.find((p) => p.weekStart === '2026-10-05' && p.dayOfWeek === 0)!;
+    const session = await useAppStore.getState().addSession({
+      movement: monday.movement, startedAt: new Date(2026, 9, 5, 7, 0).toISOString(), durationSec: 1200,
+      targetReps: 1, completedReps: 40, effort: 6, kind: 'GUIDED',
+    }, monday.id);
+
+    await useAppStore.getState().importBaseline(
+      makeBaseline({ startLevelOrder: 9, bestLandmark: { SIX_COUNT: 300, NAVY_SEAL: 135 } }),
+    );
+    const week = await listWeek(db, '2026-10-05');
+    const linked = week.find((p) => p.id === monday.id)!;
+    expect(linked.sessionId).toBe(session.id);
+    expect(linked.targetReps).toBe(1);
+    const open = week.filter((p) => p.sessionId === undefined);
+    expect(open.length).toBeGreaterThan(0);
+    expect(open.every((p) => p.targetReps > 1)).toBe(true);
+  });
+});
+
 describe('selectors', () => {
   it('selectWeek returns seven days with today flagged', async () => {
     await useAppStore.getState().ensureWeek(NOW);

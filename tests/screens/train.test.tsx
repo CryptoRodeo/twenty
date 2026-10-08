@@ -24,7 +24,7 @@ beforeEach(() => {
   jest.useFakeTimers({ now: new Date(2026, 9, 7, 9, 0) }); // Wednesday 2026-10-07
   mockPush.mockClear();
   mockState = {
-    settings: { countInSec: 10 },
+    settings: { countInSec: 10, planDays: [0, 1, 2, 6] },
     nextPlan: {
       id: '2026-10-05-2', weekStart: '2026-10-05', dayOfWeek: 2,
       movement: 'SIX_COUNT', targetReps: 292, isTestDay: false,
@@ -65,10 +65,19 @@ describe('train screen', () => {
     expect(screen.getByText(/landmark attempt/i)).toBeTruthy();
   });
 
-  it('falls back to a rest-day message when nothing is planned', () => {
+  it('says rest day only when today is not a plan day', () => {
     mockState.nextPlan = null;
+    jest.setSystemTime(new Date(2026, 9, 8, 9, 0)); // Thursday, not a plan day
     render(<TrainScreen />);
     expect(screen.getByText(/rest day/i)).toBeTruthy();
+  });
+
+  it('says no workout planned yet when today is a plan day but nothing is planned', () => {
+    mockState.nextPlan = null; // Wednesday is a plan day
+    render(<TrainScreen />);
+    expect(screen.getByText(/no workout planned yet/i)).toBeTruthy();
+    expect(screen.queryByText(/rest day/i)).toBeNull();
+    expect(screen.getByLabelText('Open custom timer')).toBeTruthy();
   });
 
   it('opens the custom timer with no prefilled plan', () => {

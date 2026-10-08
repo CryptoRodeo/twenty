@@ -15,6 +15,8 @@ export default function TrainScreen() {
   const now = new Date();
   const plan = useAppStore((s) => selectNextPlan(s, now));
   const progression = useAppStore((s) => selectProgression(s, now));
+  const planDays = useAppStore((s) => s.settings.planDays);
+  const restDay = !planDays.some((d) => d === dayIndex(now));
 
   const isToday =
     plan !== null && plan.weekStart === weekStartIso(now) && plan.dayOfWeek === dayIndex(now);
@@ -57,7 +59,9 @@ export default function TrainScreen() {
           </>
         ) : (
           <Text style={{ ...theme.font.body, color: theme.colors.textDim }}>
-            Rest day — nothing planned. Use the custom timer for an extra session.
+            {restDay
+              ? 'Rest day — nothing planned. Use the custom timer for an extra session.'
+              : 'No workout planned yet. Use the custom timer for an extra session.'}
           </Text>
         )}
       </Card>

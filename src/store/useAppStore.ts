@@ -3,7 +3,9 @@ import type { Db } from '@/data/db';
 import {
   deleteLevelEventsExcept, listLevelEvents, upsertLevelEvents,
 } from '@/data/levelEventsRepo';
-import { linkSession, listAllPlanned, listWeek, saveWeek } from '@/data/plannedRepo';
+import {
+  deleteUnlinkedWeek, linkSession, listAllPlanned, listWeek, saveWeek,
+} from '@/data/plannedRepo';
 import {
   deleteSession, insertSession, listSessions, updateSession,
 } from '@/data/sessionsRepo';
@@ -62,6 +64,39 @@ async function reconcileLevelEvents(db: Db, baseline: Baseline | null): Promise<
   const events = computeLevelEvents({ sessions, baseline, now: new Date() });
   await upsertLevelEvents(db, events);
   await deleteLevelEventsExcept(db, events.map((e) => e.id));
+}
+
+/** Plan one week from the current progression (pure read of db + state). */
+async function buildWeek(db: Db, state: AppState, now: Date): Promise<PlannedSession[]> {
+  const weekStart = weekStartIso(now);
+  const progression = computeProgression({
+    sessions: state.sessions, baseline: state.baseline, now,
+  });
+  const landmarks = {} as MovementMap<number>;
+  for (const m of MOVEMENTS) landmarks[m] = progression.nextTargets[m].target;
+  const previousWeek = await listWeek(db, toIsoDate(addDays(parseIsoDate(weekStart), -7)));
+  return planWeek({
+    weekStart,
+    planDays: state.settings.planDays,
+    previousWeek,
+    sessions: state.sessions,
+    landmarks,
+    best: progression.best,
+  });
+}
+
+/**
+ * Replace the targets of this week's slots that no session is linked to.
+ * Linked (done) rows are never touched. No-op when the week is unplanned.
+ */
+async function replanOpenSlots(db: Db, state: AppState, now: Date): Promise<void> {
+  const weekStart = weekStartIso(now);
+  const existing = await listWeek(db, weekStart);
+  if (existing.length === 0) return;
+  const linkedIds = new Set(existing.filter((p) => p.sessionId !== undefined).map((p) => p.id));
+  await deleteUnlinkedWeek(db, weekStart);
+  const fresh = await buildWeek(db, state, now);
+  await saveWeek(db, fresh.filter((p) => !linkedIds.has(p.id)));
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -146,6 +181,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     await saveBaseline(db, b);
     set({ baseline: b });
     await reconcileLevelEvents(db, b);
+    // Targets planned before the import were 1A-level; re-plan the open slots.
+    await replanOpenSlots(db, get(), new Date());
     await get().ensureWeek(new Date());
     await get().reload();
   },
@@ -156,22 +193,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     // An existing week (possibly hand-edited) is never overwritten.
     if ((await listWeek(db, weekStart)).length > 0) return;
 
-    const state = get();
-    const progression = computeProgression({
-      sessions: state.sessions, baseline: state.baseline, now,
-    });
-    const landmarks = {} as MovementMap<number>;
-    for (const m of MOVEMENTS) landmarks[m] = progression.nextTargets[m].target;
-
-    const previousWeek = await listWeek(db, toIsoDate(addDays(parseIsoDate(weekStart), -7)));
-    await saveWeek(db, planWeek({
-      weekStart,
-      planDays: state.settings.planDays,
-      previousWeek,
-      sessions: state.sessions,
-      landmarks,
-      best: progression.best,
-    }));
+    await saveWeek(db, await buildWeek(db, get(), now));
     await get().reload();
   },
 }));

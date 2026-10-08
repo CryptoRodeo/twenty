@@ -4,7 +4,7 @@ import RootLayout from '../app/_layout';
 
 const mockState = {
   ready: false,
-  baseline: {},
+  baseline: null as unknown,
   sessions: [] as unknown[],
   init: jest.fn(),
   ensureWeek: jest.fn(),
@@ -33,6 +33,16 @@ it('shows the bootstrap error even after init has marked the store ready', async
   render(<RootLayout />);
   await waitFor(() =>
     expect(screen.getByText('Could not open the database: disk full')).toBeTruthy());
+});
+
+it('plans the week at boot even on a fresh install with no baseline or history', async () => {
+  mockState.baseline = null;
+  mockState.sessions = [];
+  mockState.ready = true;
+  mockState.ensureWeek.mockReset();
+  mockState.ensureWeek.mockResolvedValue(undefined);
+  render(<RootLayout />);
+  await waitFor(() => expect(mockState.ensureWeek).toHaveBeenCalledTimes(1));
 });
 
 it('re-plans the week when the app returns to the foreground', async () => {

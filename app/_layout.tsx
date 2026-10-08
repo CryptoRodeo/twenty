@@ -21,9 +21,8 @@ export default function RootLayout() {
         if (cancelled) return;
         const store = useAppStore.getState();
         await store.init(db);
-        // A fresh install must not persist a 1-rep week; wait for a baseline or history.
-        const { baseline, sessions } = useAppStore.getState();
-        if (baseline !== null || sessions.length > 0) await store.ensureWeek(new Date());
+        // Plan the week even on a fresh install; importing a baseline re-plans open slots.
+        await store.ensureWeek(new Date());
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       }
@@ -36,11 +35,8 @@ export default function RootLayout() {
     if (!ready) return undefined;
     const sub = AppState.addEventListener('change', (status) => {
       if (status !== 'active') return;
-      const state = useAppStore.getState();
-      if (state.baseline !== null || state.sessions.length > 0) {
-        state.ensureWeek(new Date()).catch((e: unknown) =>
-          setError(e instanceof Error ? e.message : String(e)));
-      }
+      useAppStore.getState().ensureWeek(new Date()).catch((e: unknown) =>
+        setError(e instanceof Error ? e.message : String(e)));
     });
     return () => sub.remove();
   }, [ready]);
