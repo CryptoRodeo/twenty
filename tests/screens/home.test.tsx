@@ -20,7 +20,7 @@ beforeEach(() => {
     goalMin: 80,
     days: [0, 1, 2, 3, 4, 5, 6].map((d) => ({
       dayOfWeek: d, letter: 'MTWTFSS'[d], movement: null, short: null,
-      planned: null, done: false, isToday: d === 2,
+      planned: null, done: false, isToday: d === 2, missed: false, isTestDay: false,
     })),
     byMovement: {
       SIX_COUNT: [{ id: 'a', dayOfWeek: 0, movement: 'SIX_COUNT', targetReps: 292, isTestDay: false, sessionId: 'x', weekStart: '2026-10-05' }],
@@ -51,6 +51,18 @@ describe('home screen', () => {
     expect(screen.getByText('Monday · 292')).toBeTruthy();
     expect(screen.getByLabelText('Monday 6-count done')).toBeTruthy();
     expect(screen.getByText('Tuesday · 130')).toBeTruthy();
+  });
+
+  it('shows Missed for a missed planned day and Landmark attempt for a test day', () => {
+    jest.useFakeTimers().setSystemTime(new Date(2026, 9, 7, 7, 0)); // Wednesday
+    const days = mockWeek.days as { missed: boolean }[];
+    days[0]!.missed = true;
+    const byMovement = mockWeek.byMovement as Record<string, { isTestDay: boolean }[]>;
+    byMovement.NAVY_SEAL![0]!.isTestDay = true;
+    render(<HomeScreen />);
+    expect(screen.getAllByText('Missed')).toHaveLength(1);
+    expect(screen.getAllByText('Landmark attempt')).toHaveLength(1);
+    jest.useRealTimers();
   });
 
   it('renders the seven day circles', () => {

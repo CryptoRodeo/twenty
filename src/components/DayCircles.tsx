@@ -9,6 +9,7 @@ function label(day: WeekDayView): string {
   const what = day.movement ? MOVEMENT_LABEL[day.movement] : 'Rest';
   const parts = [DAY_NAMES[day.dayOfWeek], what];
   if (day.done) parts.push('done');
+  if (day.missed) parts.push('missed');
   if (day.isToday) parts.push('today');
   return parts.join(', ');
 }
@@ -28,7 +29,7 @@ export function DayCircles({ days }: { days: WeekDayView[] }) {
                 width: theme.spacing(9), height: theme.spacing(9), borderRadius: theme.radii.pill,
                 alignItems: 'center', justifyContent: 'center',
                 borderWidth: day.isToday ? 2 : 1,
-                borderColor: day.isToday ? theme.colors.text : color,
+                borderColor: day.isToday ? theme.colors.text : day.missed ? theme.colors.danger : color,
                 backgroundColor: day.done ? color : 'transparent',
               }}
             >

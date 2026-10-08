@@ -250,6 +250,27 @@ describe('selectors', () => {
     expect(view.days.filter((d) => d.done)).toHaveLength(1);
   });
 
+  it('selectWeek derives missed days (past, planned, not done) and test days', async () => {
+    await useAppStore.getState().ensureWeek(NOW);
+    const state = useAppStore.getState();
+    const mondaySlot = state.planned.find((p) => p.weekStart === '2026-10-05' && p.dayOfWeek === 0)!;
+    const view = selectWeek(state, NOW);
+    expect(view.days[0]!.missed).toBe(true); // Monday planned, before Wednesday, not done
+    expect(view.days[2]!.missed).toBe(false); // today is not missed
+    expect(view.days[3]!.missed).toBe(false); // rest day
+    expect(view.days[0]!.isTestDay).toBe(mondaySlot.isTestDay);
+    const marked = selectWeek(
+      { ...state, planned: state.planned.map((p) => (p.id === mondaySlot.id ? { ...p, isTestDay: true } : p)) },
+      NOW,
+    );
+    expect(marked.days[0]!.isTestDay).toBe(true);
+    const done = selectWeek(
+      { ...state, planned: state.planned.map((p) => (p.id === mondaySlot.id ? { ...p, sessionId: 'x' } : p)) },
+      NOW,
+    );
+    expect(done.days[0]!.missed).toBe(false);
+  });
+
   it('selectTodaysPlan finds the slot for today only', async () => {
     await useAppStore.getState().ensureWeek(NOW);
     expect(selectTodaysPlan(useAppStore.getState(), NOW)!.dayOfWeek).toBe(2);

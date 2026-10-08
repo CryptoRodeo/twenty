@@ -4,7 +4,7 @@ import type { WeekDayView } from '@/store/useAppStore';
 
 const day = (over: Partial<WeekDayView>): WeekDayView => ({
   dayOfWeek: 0, letter: 'M', movement: null, short: null,
-  planned: null, done: false, isToday: false, ...over,
+  planned: null, done: false, isToday: false, missed: false, isTestDay: false, ...over,
 });
 
 const week: WeekDayView[] = [
@@ -27,6 +27,11 @@ describe('DayCircles', () => {
     render(<DayCircles days={week} />);
     expect(screen.getByTestId('day-circle-0').props.accessibilityLabel).toContain('6-count');
     expect(screen.getByTestId('day-circle-3').props.accessibilityLabel).toContain('Rest');
+  });
+
+  it('flags missed days in the label', () => {
+    render(<DayCircles days={[day({ dayOfWeek: 0, movement: 'SIX_COUNT', short: '6', missed: true })]} />);
+    expect(screen.getByTestId('day-circle-0').props.accessibilityLabel).toContain('missed');
   });
 
   it('marks completed days as done and flags today', () => {

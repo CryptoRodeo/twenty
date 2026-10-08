@@ -192,6 +192,9 @@ export interface WeekDayView {
   planned: PlannedSession | null;
   done: boolean;
   isToday: boolean;
+  /** Planned, earlier than today in the current week, and not done. */
+  missed: boolean;
+  isTestDay: boolean;
 }
 
 export interface WeekView {
@@ -219,6 +222,8 @@ export function selectWeek(s: AppState, now: Date): WeekView {
       planned: slot,
       done: slot?.sessionId !== undefined,
       isToday: d === today,
+      missed: slot !== null && slot.sessionId === undefined && d < today,
+      isTestDay: slot?.isTestDay ?? false,
     };
   });
 

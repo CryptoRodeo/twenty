@@ -46,10 +46,16 @@ export default function HomeScreen() {
                 <Text style={{ ...theme.font.body, color: theme.colors.textDim }}>Not planned</Text>
               ) : (
                 week.byMovement[m].map((p) => (
-                  <View key={p.id} style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing(2), marginBottom: theme.spacing(1) }}>
+                  <View key={p.id} style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: theme.spacing(2), marginBottom: theme.spacing(1) }}>
                     <Text style={{ ...theme.font.body, color: theme.colors.text }}>
                       {`${DAY_NAMES[p.dayOfWeek]} · ${p.targetReps}`}
                     </Text>
+                    {week.days[p.dayOfWeek]?.missed && (
+                      <Text style={{ ...theme.font.body, color: theme.colors.danger }}>Missed</Text>
+                    )}
+                    {p.isTestDay && (
+                      <Text style={{ ...theme.font.body, color: theme.colors.accent }}>Landmark attempt</Text>
+                    )}
                     {p.sessionId !== undefined && (
                       <Text
                         accessibilityLabel={`${DAY_NAMES[p.dayOfWeek]} ${MOVEMENT_LABEL[m]} done`}
