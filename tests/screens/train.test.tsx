@@ -24,7 +24,7 @@ beforeEach(() => {
   jest.useFakeTimers({ now: new Date(2026, 9, 7, 9, 0) }); // Wednesday 2026-10-07
   mockPush.mockClear();
   mockState = {
-    settings: { countInSec: 10, planDays: [0, 1, 2, 6] },
+    settings: { countInSec: 10, planDays: [0, 1, 2, 6].map((dayOfWeek) => ({ dayOfWeek, movement: 'NAVY_SEAL' })) },
     nextPlan: {
       id: '2026-10-05-2', weekStart: '2026-10-05', dayOfWeek: 2,
       movement: 'SIX_COUNT', targetReps: 292, isTestDay: false,

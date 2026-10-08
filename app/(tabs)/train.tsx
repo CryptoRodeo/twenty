@@ -16,7 +16,7 @@ export default function TrainScreen() {
   const plan = useAppStore((s) => selectNextPlan(s, now));
   const progression = useAppStore((s) => selectProgression(s, now));
   const planDays = useAppStore((s) => s.settings.planDays);
-  const restDay = !planDays.some((d) => d === dayIndex(now));
+  const restDay = !planDays.some((d) => d.dayOfWeek === dayIndex(now));
 
   const isToday =
     plan !== null && plan.weekStart === weekStartIso(now) && plan.dayOfWeek === dayIndex(now);
