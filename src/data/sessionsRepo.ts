@@ -45,6 +45,18 @@ export async function insertSession(db: Db, s: Session): Promise<void> {
   );
 }
 
+/** All-or-nothing: a failure part-way leaves no rows behind. */
+export async function insertSessions(db: Db, sessions: Session[]): Promise<void> {
+  await db.execAsync('BEGIN');
+  try {
+    for (const s of sessions) await insertSession(db, s);
+    await db.execAsync('COMMIT');
+  } catch (error) {
+    await db.execAsync('ROLLBACK');
+    throw error;
+  }
+}
+
 export async function updateSession(db: Db, s: Session): Promise<void> {
   await db.runAsync(
     `UPDATE sessions SET movement = ?, started_at = ?, duration_sec = ?, target_reps = ?,

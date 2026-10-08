@@ -7,7 +7,7 @@ import {
   linkSession, listAllPlanned, listWeek, saveWeek,
 } from '@/data/plannedRepo';
 import {
-  deleteSession, insertSession, listSessions, updateSession,
+  deleteSession, insertSession, insertSessions, listSessions, updateSession,
 } from '@/data/sessionsRepo';
 import {
   DEFAULT_SETTINGS, getBaseline, getSettings, saveBaseline, saveSettings,
@@ -204,9 +204,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   importSessions: async (rows) => {
     const db = requireDb(get());
-    for (const row of rows) {
-      await insertSession(db, { ...row, id: newId() });
-    }
+    await insertSessions(db, rows.map((row) => ({ ...row, id: newId() })));
     await settleDerivedState(db, get);
   },
 

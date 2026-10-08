@@ -1,6 +1,7 @@
 import { runMigrations } from '@/data/migrations';
 import { listWeek } from '@/data/plannedRepo';
 import { listLevelEvents } from '@/data/levelEventsRepo';
+import { listSessions } from '@/data/sessionsRepo';
 import {
   selectProgression,
   selectStats,
@@ -307,6 +308,26 @@ describe('importSessions', () => {
     expect(useAppStore.getState().sessions).toHaveLength(2);
     expect(selectProgression(useAppStore.getState(), NOW).currentLevel!.name).toBe('1D');
     expect((await listLevelEvents(db)).length).toBeGreaterThan(0);
+  });
+
+  it('inserts nothing on a failed import, so a retry yields exactly N sessions', async () => {
+    const rows = [
+      row('SIX_COUNT', '2026-09-01T12:00:00.000Z', 160),
+      row('SIX_COUNT', '2026-09-02T12:00:00.000Z', 161),
+      row('NAVY_SEAL', '2026-09-03T12:00:00.000Z', 60),
+    ];
+    const real = db.runAsync.bind(db);
+    let inserts = 0;
+    const spy = jest.spyOn(db, 'runAsync').mockImplementation(((sql: string, ...a: unknown[]) => {
+      if (/INSERT INTO sessions/.test(sql) && ++inserts === 3) return Promise.reject(new Error('disk full'));
+      return (real as (...x: unknown[]) => unknown)(sql, ...a);
+    }) as never);
+    await expect(useAppStore.getState().importSessions(rows)).rejects.toThrow('disk full');
+    expect(await listSessions(db)).toEqual([]);
+    spy.mockRestore();
+    await useAppStore.getState().importSessions(rows);
+    expect(useAppStore.getState().sessions).toHaveLength(3);
+    expect(await listSessions(db)).toHaveLength(3);
   });
 
   it('re-plans the current week\'s open slots from the imported history', async () => {

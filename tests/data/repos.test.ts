@@ -1,7 +1,7 @@
 import { runMigrations } from '@/data/migrations';
 import { deleteLevelEventsExcept, listLevelEvents, upsertLevelEvents } from '@/data/levelEventsRepo';
 import { linkSession, listAllPlanned, listWeek, saveWeek } from '@/data/plannedRepo';
-import { deleteSession, getSession, insertSession, listSessions, updateSession } from '@/data/sessionsRepo';
+import { deleteSession, getSession, insertSession, insertSessions, listSessions, updateSession } from '@/data/sessionsRepo';
 import { DEFAULT_SETTINGS, getBaseline, getSettings, saveBaseline, saveSettings } from '@/data/settingsRepo';
 import { buildWeek, DEFAULT_PLAN_DAYS } from '@/domain/planner';
 import { makeBaseline, makeSession } from '../helpers/factories';
@@ -46,6 +46,20 @@ describe('sessionsRepo', () => {
     await insertSession(db, makeSession({ id: 'd1' }));
     await deleteSession(db, 'd1');
     expect(await getSession(db, 'd1')).toBeNull();
+  });
+});
+
+describe('insertSessions', () => {
+  it('inserts the whole batch', async () => {
+    await insertSessions(db, [makeSession({ id: 'a' }), makeSession({ id: 'b' })]);
+    expect((await listSessions(db)).map((s) => s.id)).toEqual(['a', 'b']);
+  });
+
+  it('inserts nothing and rethrows when a row fails mid-batch', async () => {
+    await expect(insertSessions(db, [
+      makeSession({ id: 'a' }), makeSession({ id: 'b' }), makeSession({ id: 'a' }),
+    ])).rejects.toThrow();
+    expect(await listSessions(db)).toEqual([]);
   });
 });
 
