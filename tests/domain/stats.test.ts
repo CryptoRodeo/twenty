@@ -1,3 +1,4 @@
+import { bestLandmark } from '@/domain/progression';
 import {
   buildChartSeries,
   computeRecords,
@@ -76,6 +77,17 @@ describe('computeRecords', () => {
     );
     expect(records.best20Min).toEqual({ SIX_COUNT: 325, NAVY_SEAL: 150 });
     expect(records.totalByMovement).toEqual({ SIX_COUNT: 35_617, NAVY_SEAL: 15_344 });
+  });
+
+  it('agrees with the progression bestLandmark (one implementation)', () => {
+    const sessions = [
+      makeSession({ movement: 'SIX_COUNT', completedReps: 330 }),
+      makeSession({ movement: 'SIX_COUNT', completedReps: 900, durationSec: 1199 }),
+      makeSession({ movement: 'NAVY_SEAL', completedReps: 10 }),
+    ];
+    const baseline = makeBaseline({ bestLandmark: { SIX_COUNT: 325, NAVY_SEAL: 150 } });
+    expect(computeRecords(sessions, baseline).best20Min).toEqual(bestLandmark(sessions, baseline));
+    expect(computeRecords(sessions, baseline).best20Min).toEqual({ SIX_COUNT: 330, NAVY_SEAL: 150 });
   });
 });
 

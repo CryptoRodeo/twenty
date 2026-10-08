@@ -1,5 +1,5 @@
 import { MOVEMENTS, ZERO_REPS } from './levels';
-import { isLandmarkEligible } from './progression';
+import { bestLandmark } from './progression';
 import { addDays, monthKey, parseIsoDate, toIsoDate, weekStartIso } from './time';
 import type { Baseline, Movement, MovementMap, Session } from './types';
 
@@ -32,13 +32,10 @@ export interface PersonalRecords {
 }
 
 export function computeRecords(sessions: Session[], baseline: Baseline | null): PersonalRecords {
-  const best: MovementMap<number> = { ...(baseline?.bestLandmark ?? ZERO_REPS) };
-  for (const s of sessions) {
-    if (isLandmarkEligible(s) && s.completedReps > best[s.movement]) {
-      best[s.movement] = s.completedReps;
-    }
-  }
-  return { best20Min: best, totalByMovement: computeTotals(sessions, baseline).byMovement };
+  return {
+    best20Min: bestLandmark(sessions, baseline),
+    totalByMovement: computeTotals(sessions, baseline).byMovement,
+  };
 }
 
 /** Total planned minutes logged in the Mon–Sun week starting `weekStart`. */
