@@ -31,7 +31,7 @@ describe('levels screen', () => {
   it('shows the current level and what is next', () => {
     render(<LevelsScreen />);
     expect(screen.getByText('Level 4B')).toBeTruthy();
-    expect(screen.getByText('Next: Graduation')).toBeTruthy();
+    expect(screen.getByText('Working toward Graduation')).toBeTruthy();
   });
 
   it('shows a labelled progress bar per movement', () => {

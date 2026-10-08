@@ -42,7 +42,7 @@ export default function LevelsScreen() {
         title={progression.currentLevel ? `Level ${progression.currentLevel.name}` : 'No level yet'}
         right={
           <Text style={{ ...theme.font.body, color: theme.colors.textDim }}>
-            {progression.nextLevel ? `Next: ${progression.nextLevel.name}` : 'Program complete'}
+            {progression.nextLevel ? `Working toward ${progression.nextLevel.name}` : 'Program complete'}
           </Text>
         }
       >

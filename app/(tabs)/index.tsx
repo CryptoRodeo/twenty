@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Card } from '@/components/Card';
+import { Chip } from '@/components/Chip';
 import { DayCircles } from '@/components/DayCircles';
 import { LandmarkProgress } from '@/components/LandmarkProgress';
 import { movementColor } from '@/components/MovementBadge';
 import { ProgressBar } from '@/components/ProgressBar';
 import { PrimaryButton } from '@/components/PrimaryButton';
-import { MOVEMENTS, MOVEMENT_LABEL } from '@/domain/levels';
+import { LEVELS, MOVEMENTS, MOVEMENT_LABEL } from '@/domain/levels';
 import { ZERO_BASELINE, graduationWarning } from '@/domain/progression';
 import { DAY_NAMES } from '@/domain/time';
 import { selectProgression, selectWeek, useAppStore } from '@/store/useAppStore';
@@ -21,14 +22,24 @@ export default function HomeScreen() {
   const warning = graduationWarning(progression);
   const showImport = useAppStore((s) => s.baseline === null && s.sessions.length === 0);
   const importBaseline = useAppStore((s) => s.importBaseline);
-  const [importError, setImportError] = useState<string | null>(null);
+  const setTargetLevel = useAppStore((s) => s.setTargetLevel);
+  const savedTarget = useAppStore((s) => s.settings.targetLevelOrder);
+  const [selected, setSelected] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
+  const chosen = selected ?? savedTarget;
 
-  async function dismissImport(): Promise<void> {
-    setImportError(null);
+  async function startAtLevel(): Promise<void> {
+    if (busy) return;
+    setBusy(true);
+    setStartError(null);
     try {
+      await setTargetLevel(chosen);
       await importBaseline(ZERO_BASELINE);
     } catch (e) {
-      setImportError(e instanceof Error ? e.message : String(e));
+      setStartError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -38,18 +49,39 @@ export default function HomeScreen() {
       style={{ backgroundColor: theme.colors.bg }}
     >
       {showImport && (
-        <Card title="Import existing progress">
+        <Card title="Choose your starting level">
           <Text style={{ ...theme.font.body, color: theme.colors.textDim, marginBottom: theme.spacing(3) }}>
-            Already been training? Bring your level, personal bests and totals with you.
+            Pick the level you are working on. Choosing a level completes nothing. You can change this later in Settings.
           </Text>
-          {importError !== null && (
-            <Text style={{ ...theme.font.body, color: theme.colors.danger, marginBottom: theme.spacing(3) }}>
-              {`Could not save: ${importError}`}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing(2), marginBottom: theme.spacing(3) }}>
+            {LEVELS.map((level) => (
+              <Chip
+                key={level.order}
+                label={level.name}
+                accessibilityLabel={`Start level ${level.name}`}
+                selected={chosen === level.order}
+                onPress={() => setSelected(level.order)}
+              />
+            ))}
+          </View>
+          {startError !== null && (
+            <Text accessibilityRole="alert" style={{ ...theme.font.body, color: theme.colors.danger, marginBottom: theme.spacing(3) }}>
+              {`Could not save: ${startError}`}
             </Text>
           )}
           <View style={{ gap: theme.spacing(3) }}>
-            <PrimaryButton label="Import" onPress={() => router.push('/onboarding/import')} />
-            <PrimaryButton label="Not now" variant="ghost" onPress={() => void dismissImport()} />
+            <PrimaryButton
+              label={`Start at ${LEVELS[chosen]!.name}`}
+              accessibilityLabel="Start at selected level"
+              disabled={busy}
+              onPress={() => void startAtLevel()}
+            />
+            <PrimaryButton
+              label="Import existing progress"
+              variant="ghost"
+              disabled={busy}
+              onPress={() => router.push('/onboarding/import')}
+            />
           </View>
         </Card>
       )}

@@ -50,6 +50,8 @@ export interface Settings {
   soundOn: boolean;
   hapticsOn: boolean;
   countInSec: number;     // default 10
+  /** Level the user is working toward (0..GRADUATION_ORDER); default 0 = 1A. Marks nothing completed. */
+  targetLevelOrder: number;
 }
 
 /**

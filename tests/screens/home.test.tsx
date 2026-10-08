@@ -7,6 +7,7 @@ let mockWeek: Record<string, unknown>;
 let mockProgression: Record<string, unknown>;
 let mockState: Record<string, unknown>;
 const mockImportBaseline = jest.fn();
+const mockSetTargetLevel = jest.fn();
 
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('@/store/useAppStore', () => ({
@@ -15,10 +16,16 @@ jest.mock('@/store/useAppStore', () => ({
   selectProgression: () => mockProgression,
 }));
 
+const freshState = (over: Record<string, unknown> = {}) => ({
+  baseline: null, sessions: [], settings: { targetLevelOrder: 0 },
+  importBaseline: mockImportBaseline, setTargetLevel: mockSetTargetLevel, ...over,
+});
+
 beforeEach(() => {
   mockPush.mockClear();
   mockImportBaseline.mockReset().mockResolvedValue(undefined);
-  mockState = { baseline: ZERO_BASELINE, sessions: [], importBaseline: mockImportBaseline };
+  mockSetTargetLevel.mockReset().mockResolvedValue(undefined);
+  mockState = freshState({ baseline: ZERO_BASELINE });
   mockWeek = {
     weekStart: '2026-10-05',
     minutesDone: 40,
@@ -102,33 +109,58 @@ describe('home screen', () => {
     expect(mockPush).toHaveBeenCalledWith('/week/edit');
   });
 
-  describe('import card', () => {
-    it('is shown on a fresh store with the two actions', async () => {
-      mockState = { baseline: null, sessions: [], importBaseline: mockImportBaseline };
+  describe('starting level card', () => {
+    it('is shown on a fresh store with 1A selected', () => {
+      mockState = freshState();
       render(<HomeScreen />);
-      expect(screen.getByText('Import existing progress')).toBeTruthy();
-      fireEvent.press(screen.getByLabelText('Import'));
-      expect(mockPush).toHaveBeenCalledWith('/onboarding/import');
-      fireEvent.press(screen.getByLabelText('Not now'));
+      expect(screen.getByText('Choose your starting level')).toBeTruthy();
+      expect(screen.getByText('Start at 1A')).toBeTruthy();
+      expect(screen.getByText(/change this later in Settings/)).toBeTruthy();
+    });
+
+    it('choosing 1C and confirming sets the target then saves the zero baseline', async () => {
+      mockState = freshState();
+      render(<HomeScreen />);
+      fireEvent.press(screen.getByLabelText('Start level 1C'));
+      fireEvent.press(screen.getByLabelText('Start at selected level'));
       await waitFor(() => expect(mockImportBaseline).toHaveBeenCalledWith(ZERO_BASELINE));
+      expect(mockSetTargetLevel).toHaveBeenCalledWith(2);
+      expect(mockSetTargetLevel.mock.invocationCallOrder[0]!)
+        .toBeLessThan(mockImportBaseline.mock.invocationCallOrder[0]!);
+    });
+
+    it('ignores a second tap while saving', async () => {
+      mockState = freshState();
+      render(<HomeScreen />);
+      fireEvent.press(screen.getByLabelText('Start at selected level'));
+      fireEvent.press(screen.getByLabelText('Start at selected level'));
+      await waitFor(() => expect(mockImportBaseline).toHaveBeenCalledTimes(1));
+      expect(mockSetTargetLevel).toHaveBeenCalledTimes(1);
+    });
+
+    it('the import link navigates', () => {
+      mockState = freshState();
+      render(<HomeScreen />);
+      fireEvent.press(screen.getByLabelText('Import existing progress'));
+      expect(mockPush).toHaveBeenCalledWith('/onboarding/import');
     });
 
     it('is hidden once a baseline exists', () => {
       render(<HomeScreen />);
-      expect(screen.queryByText('Import existing progress')).toBeNull();
+      expect(screen.queryByText('Choose your starting level')).toBeNull();
     });
 
     it('is hidden once a session exists', () => {
-      mockState = { baseline: null, sessions: [{ id: 's' }], importBaseline: mockImportBaseline };
+      mockState = freshState({ sessions: [{ id: 's' }] });
       render(<HomeScreen />);
-      expect(screen.queryByText('Import existing progress')).toBeNull();
+      expect(screen.queryByText('Choose your starting level')).toBeNull();
     });
 
-    it('shows an error when Not now fails to save', async () => {
-      mockState = { baseline: null, sessions: [], importBaseline: mockImportBaseline };
+    it('shows an inline error when saving fails', async () => {
+      mockState = freshState();
       mockImportBaseline.mockRejectedValue(new Error('disk full'));
       render(<HomeScreen />);
-      fireEvent.press(screen.getByLabelText('Not now'));
+      fireEvent.press(screen.getByLabelText('Start at selected level'));
       expect(await screen.findByText('Could not save: disk full')).toBeTruthy();
     });
   });

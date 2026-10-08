@@ -6,7 +6,6 @@ import {
   MOVEMENTS,
   ZERO_REPS,
   levelByOrder,
-  nextLevelAfter,
   type Level,
 } from './levels';
 import { addDays, diffDays, parseIsoDate, weekStartIso } from './time';
@@ -16,6 +15,8 @@ export interface ProgressionInput {
   sessions: Session[];
   baseline: Baseline | null;
   now: Date;
+  /** Level the user chose to work toward (default 0). Raises the next level, never the current one. */
+  targetLevelOrder?: number;
 }
 
 export interface MovementProgress {
@@ -138,7 +139,7 @@ function progressFor(best: MovementMap<number>, level: Level | null): MovementMa
  * baseline floor.
  */
 export function computeProgression(input: ProgressionInput): ProgressionState {
-  const { sessions, baseline, now } = input;
+  const { sessions, baseline, now, targetLevelOrder = 0 } = input;
   const best = bestLandmark(sessions, baseline);
   const gradWeek = findGraduationWeek(sessions, baseline);
 
@@ -170,7 +171,8 @@ export function computeProgression(input: ProgressionInput): ProgressionState {
 
   const graduated = order === GRADUATION_ORDER;
   const currentLevel = order === null ? null : levelByOrder(order);
-  const nextLevel = nextLevelAfter(order);
+  const nextOrder = Math.max(order === null ? 0 : order + 1, targetLevelOrder);
+  const nextLevel = nextOrder > GRADUATION_ORDER ? null : levelByOrder(nextOrder);
 
   return {
     currentLevelOrder: order,

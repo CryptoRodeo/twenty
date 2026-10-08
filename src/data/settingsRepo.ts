@@ -11,6 +11,7 @@ export const DEFAULT_SETTINGS: Settings = {
   soundOn: true,
   hapticsOn: true,
   countInSec: 10,
+  targetLevelOrder: 0,
 };
 
 async function readJson<T>(db: Db, key: string): Promise<T | null> {

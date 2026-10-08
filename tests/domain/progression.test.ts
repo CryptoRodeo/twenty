@@ -275,3 +275,56 @@ describe('computeLevelEvents', () => {
     expect(expired[0]).toMatchObject({ id: 'level-10-EXPIRED', levelOrder: 10 });
   });
 });
+
+describe('targetLevelOrder', () => {
+  const six = (reps: number, extra = {}) =>
+    makeSession({ movement: 'SIX_COUNT', completedReps: reps, startedAt: '2026-10-05T06:00:00.000Z', ...extra });
+  const navy = (reps: number, extra = {}) =>
+    makeSession({ movement: 'NAVY_SEAL', completedReps: reps, startedAt: '2026-10-05T07:00:00.000Z', ...extra });
+  const run = (sessions: ReturnType<typeof makeSession>[], targetLevelOrder: number, baseline = null) =>
+    computeProgression({ sessions, baseline, now: NOW, targetLevelOrder });
+
+  it('with no sessions the target level is the next level and completes nothing', () => {
+    const p = run([], 2);
+    expect(p.currentLevelOrder).toBeNull();
+    expect(p.nextLevel?.name).toBe('1C');
+    expect(p.nextTargets.SIX_COUNT.target).toBe(100);
+    expect(p.nextTargets.NAVY_SEAL.target).toBe(40);
+    expect(p.reachedAt).toEqual({});
+  });
+
+  it('meeting the target level completes it and everything below', () => {
+    const p = run([six(100), navy(40)], 2);
+    expect(p.currentLevelOrder).toBe(2);
+    expect(Object.keys(p.reachedAt).map(Number)).toEqual(expect.arrayContaining([0, 1, 2]));
+    expect(p.nextLevel?.name).toBe('1D');
+  });
+
+  it('exceeding the target level advances past it', () => {
+    const p = run([six(160), navy(70)], 2);
+    expect(p.currentLevel?.name).toBe('1D');
+    expect(p.nextLevel?.name).toBe('2A');
+  });
+
+  it('stays on the target while only a lower level is met', () => {
+    const p = run([six(120), navy(30)], 2);
+    expect(p.currentLevelOrder).toBe(1);
+    expect(p.nextLevel?.name).toBe('1C');
+  });
+
+  it('ignores a target below the current level', () => {
+    const p = run([], 2, makeBaseline({ startLevelOrder: 5 }) as never);
+    expect(p.currentLevelOrder).toBe(5);
+    expect(p.nextLevel?.order).toBe(6);
+  });
+
+  it('never counts non-1200s sessions', () => {
+    const p = run([six(500, { durationSec: 1100 }), navy(500, { durationSec: 1300 })], 2);
+    expect(p.currentLevelOrder).toBeNull();
+    expect(p.nextLevel?.name).toBe('1C');
+  });
+
+  it('defaults to level 0 when omitted', () => {
+    expect(computeProgression({ sessions: [], baseline: null, now: NOW }).nextLevel?.order).toBe(0);
+  });
+});

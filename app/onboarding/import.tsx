@@ -24,6 +24,7 @@ export default function ImportScreen() {
   const router = useRouter();
   const importBaseline = useAppStore((s) => s.importBaseline);
   const importSessions = useAppStore((s) => s.importSessions);
+  const setTargetLevel = useAppStore((s) => s.setTargetLevel);
 
   const [levelOrder, setLevelOrder] = useState<number | null>(null);
   const [fields, setFields] = useState(EMPTY_FIELDS);
@@ -75,7 +76,7 @@ export default function ImportScreen() {
       return;
     }
     const baseline: Baseline = {
-      startLevelOrder: levelOrder,
+      startLevelOrder: null,
       bestLandmark: { SIX_COUNT: toCount(fields.bestSix), NAVY_SEAL: toCount(fields.bestNavy) },
       totalReps: { SIX_COUNT: toCount(fields.totalSix), NAVY_SEAL: toCount(fields.totalNavy) },
       workouts: toCount(fields.workouts),
@@ -83,6 +84,7 @@ export default function ImportScreen() {
       graduationWeekStart: null,
     };
     await run(async () => {
+      if (levelOrder !== null) await setTargetLevel(levelOrder);
       await importBaseline(baseline);
       if (parsed.rows.length > 0) await importSessions(parsed.rows);
     });
@@ -100,8 +102,11 @@ export default function ImportScreen() {
         </Text>
       </Card>
 
-      <Card title="Current level">
-        <Text accessibilityLabel="Current level" style={{ ...theme.font.h2, color: theme.colors.text, marginBottom: theme.spacing(3) }}>
+      <Card title="Level you're working on">
+        <Text style={{ ...theme.font.body, color: theme.colors.textDim, marginBottom: theme.spacing(3) }}>
+          Choosing a level completes nothing; reach its landmarks in a 20-minute session to complete it.
+        </Text>
+        <Text accessibilityLabel="Level you're working on" style={{ ...theme.font.h2, color: theme.colors.text, marginBottom: theme.spacing(3) }}>
           {levelOrder === null ? 'Not started' : LEVELS[levelOrder]!.name}
         </Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing(2) }}>

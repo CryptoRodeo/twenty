@@ -4,23 +4,27 @@ import ImportScreen from '../../app/onboarding/import';
 const mockBack = jest.fn();
 const mockImportBaseline = jest.fn();
 const mockImportSessions = jest.fn();
+const mockSetTargetLevel = jest.fn();
 
 jest.mock('expo-router', () => ({ useRouter: () => ({ back: mockBack }) }));
 jest.mock('@/store/useAppStore', () => ({
   useAppStore: (selector: (s: unknown) => unknown) =>
-    selector({ importBaseline: mockImportBaseline, importSessions: mockImportSessions }),
+    selector({
+      importBaseline: mockImportBaseline, importSessions: mockImportSessions, setTargetLevel: mockSetTargetLevel,
+    }),
 }));
 
 beforeEach(() => {
   jest.clearAllMocks();
   mockImportBaseline.mockResolvedValue(undefined);
   mockImportSessions.mockResolvedValue(undefined);
+  mockSetTargetLevel.mockResolvedValue(undefined);
 });
 
 describe('import existing progress', () => {
   it('starts empty: no level and no numbers', () => {
     render(<ImportScreen />);
-    expect(screen.getByLabelText('Current level').props.children).toContain('Not started');
+    expect(screen.getByLabelText("Level you're working on").props.children).toContain('Not started');
     for (const label of [
       'Best 6-count in 20 minutes', 'Best Navy Seal in 20 minutes',
       'Total 6-counts', 'Total Navy Seals', 'Workouts', 'Streak weeks', 'Past sessions CSV',
@@ -42,13 +46,14 @@ describe('import existing progress', () => {
     fireEvent.press(screen.getByLabelText('Save imported progress'));
 
     await waitFor(() => expect(mockImportBaseline).toHaveBeenCalledWith({
-      startLevelOrder: 9,
+      startLevelOrder: null,
       bestLandmark: { SIX_COUNT: 325, NAVY_SEAL: 150 },
       totalReps: { SIX_COUNT: 35_617, NAVY_SEAL: 15_344 },
       workouts: 245,
       streakWeeks: 16,
       graduationWeekStart: null,
     }));
+    expect(mockSetTargetLevel).toHaveBeenCalledWith(9);
     await waitFor(() => expect(mockBack).toHaveBeenCalled());
   });
 

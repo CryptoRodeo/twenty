@@ -42,6 +42,8 @@ export interface AppState {
   editSession: (s: Session) => Promise<void>;
   removeSession: (id: string) => Promise<void>;
   updateSettings: (patch: Partial<Settings>) => Promise<void>;
+  /** Choose the level being worked on, then re-plan this week's open slots. Completes nothing. */
+  setTargetLevel: (order: number) => Promise<void>;
   importBaseline: (b: Baseline) => Promise<void>;
   importSessions: (rows: NewSession[]) => Promise<void>;
   ensureWeek: (now: Date) => Promise<void>;
@@ -60,9 +62,11 @@ function requireDb(state: AppState): Db {
  * Level history is derived, never authored: recompute it from all sessions
  * and make the stored rows match exactly (insert, update and delete).
  */
-async function reconcileLevelEvents(db: Db, baseline: Baseline | null): Promise<void> {
+async function reconcileLevelEvents(
+  db: Db, baseline: Baseline | null, targetLevelOrder: number,
+): Promise<void> {
   const sessions = await listSessions(db);
-  const events = computeLevelEvents({ sessions, baseline, now: new Date() });
+  const events = computeLevelEvents({ sessions, baseline, now: new Date(), targetLevelOrder });
   await upsertLevelEvents(db, events);
   await deleteLevelEventsExcept(db, events.map((e) => e.id));
 }
@@ -74,6 +78,7 @@ async function buildWeek(
   const weekStart = weekStartIso(now);
   const progression = computeProgression({
     sessions: state.sessions, baseline: state.baseline, now,
+    targetLevelOrder: state.settings.targetLevelOrder,
   });
   const landmarks = {} as MovementMap<number>;
   for (const m of MOVEMENTS) landmarks[m] = progression.nextTargets[m].target;
@@ -110,7 +115,7 @@ async function replanOpenSlots(db: Db, state: AppState, now: Date): Promise<void
  * re-plan this week's open slots (and plan the week if it does not exist yet).
  */
 async function settleDerivedState(db: Db, get: () => AppState): Promise<void> {
-  await reconcileLevelEvents(db, get().baseline);
+  await reconcileLevelEvents(db, get().baseline, get().settings.targetLevelOrder);
   await get().reload();
   // Targets planned before the import were 1A-level; re-plan the open slots.
   await replanOpenSlots(db, get(), new Date());
@@ -160,7 +165,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       ?? open.find((p) => p.dayOfWeek === dayIndex(startedAt));
     if (slot) await linkSession(db, slot.id, session.id);
 
-    await reconcileLevelEvents(db, get().baseline);
+    await reconcileLevelEvents(db, get().baseline, get().settings.targetLevelOrder);
     await get().reload();
     // A fresh install has no baseline, so its week could not be planned at launch;
     // the first session gives it history. ensureWeek never overwrites an existing week.
@@ -177,14 +182,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   editSession: async (s) => {
     const db = requireDb(get());
     await updateSession(db, s);
-    await reconcileLevelEvents(db, get().baseline);
+    await reconcileLevelEvents(db, get().baseline, get().settings.targetLevelOrder);
     await get().reload();
   },
 
   removeSession: async (id) => {
     const db = requireDb(get());
     await deleteSession(db, id);
-    await reconcileLevelEvents(db, get().baseline);
+    await reconcileLevelEvents(db, get().baseline, get().settings.targetLevelOrder);
     await get().reload();
   },
 
@@ -193,6 +198,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     const next = { ...get().settings, ...patch };
     await saveSettings(db, next);
     set({ settings: next });
+  },
+
+  setTargetLevel: async (order) => {
+    const db = requireDb(get());
+    await get().updateSettings({ targetLevelOrder: order });
+    await replanOpenSlots(db, get(), new Date());
+    await get().reload();
   },
 
   importBaseline: async (b) => {
@@ -230,7 +242,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 // ---------------------------------------------------------------------------
 
 export function selectProgression(s: AppState, now: Date): ProgressionState {
-  return computeProgression({ sessions: s.sessions, baseline: s.baseline, now });
+  return computeProgression({
+    sessions: s.sessions, baseline: s.baseline, now, targetLevelOrder: s.settings.targetLevelOrder,
+  });
 }
 
 export interface WeekDayView {

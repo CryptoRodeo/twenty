@@ -425,3 +425,33 @@ describe('selectors', () => {
     expect(selectProgression(useAppStore.getState(), NOW).currentLevel!.name).toBe('1D');
   });
 });
+
+describe('setTargetLevel', () => {
+  afterEach(() => jest.useRealTimers());
+
+  it('persists the choice, re-plans open slots from that level and completes nothing', async () => {
+    jest.useFakeTimers({ now: NOW, doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval'] });
+    await useAppStore.getState().ensureWeek(NOW);
+    await useAppStore.getState().setTargetLevel(2);
+
+    expect(useAppStore.getState().settings.targetLevelOrder).toBe(2);
+    expect((await listLevelEvents(db)).length).toBe(0);
+    const p = selectProgression(useAppStore.getState(), NOW);
+    expect(p.currentLevelOrder).toBeNull();
+    expect(p.nextLevel?.name).toBe('1C');
+
+    const week = await listWeek(db, '2026-10-05');
+    const six = week.filter((x) => x.movement === 'SIX_COUNT');
+    const navy = week.filter((x) => x.movement === 'NAVY_SEAL');
+    expect(six.length + navy.length).toBeGreaterThan(0);
+    // First-week fraction of the 1C landmark (100 / 40) via planWeek.
+    expect(six.every((x) => x.targetReps > 1 && x.targetReps <= 100)).toBe(true);
+    expect(navy.every((x) => x.targetReps > 1 && x.targetReps <= 40)).toBe(true);
+  });
+
+  it('survives a reload', async () => {
+    await useAppStore.getState().setTargetLevel(3);
+    await useAppStore.getState().reload();
+    expect(useAppStore.getState().settings.targetLevelOrder).toBe(3);
+  });
+});
