@@ -73,4 +73,14 @@ describe('edit week', () => {
     }));
     await waitFor(() => expect(mockBack).toHaveBeenCalled());
   });
+
+  it('shows an inline error and stays put when the save fails', async () => {
+    mockUpdateSettings.mockRejectedValueOnce(new Error('disk full'));
+    render(<WeekEditScreen />);
+    fireEvent.press(screen.getByLabelText('Thursday 6-count'));
+    fireEvent.press(screen.getByLabelText('Save week'));
+    expect(await screen.findByText('Could not save: disk full')).toBeTruthy();
+    expect(mockBack).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Thursday 6-count').props.accessibilityState.selected).toBe(true);
+  });
 });

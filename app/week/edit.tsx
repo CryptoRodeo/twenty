@@ -28,14 +28,26 @@ export default function WeekEditScreen() {
   const minutes = planned.length * SESSION_MIN;
   const perMovement = MOVEMENTS.map((m) => planned.filter((c) => c === m).length);
   const unbalanced = perMovement[0] !== perMovement[1];
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  /** A rejected save stays on screen with the choices intact and says why. */
   async function save(): Promise<void> {
+    if (busy) return;
     const planDays: PlanDay[] = [];
     choices.forEach((choice, dayOfWeek) => {
       if (choice !== 'REST') planDays.push({ dayOfWeek, movement: choice });
     });
-    await updateSettings({ planDays });
-    router.back();
+    setBusy(true);
+    setError(null);
+    try {
+      await updateSettings({ planDays });
+      router.back();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -76,7 +88,12 @@ export default function WeekEditScreen() {
         </Card>
       ))}
 
-      <PrimaryButton label="Save" accessibilityLabel="Save week" onPress={() => void save()} />
+      {error !== null && (
+        <Text accessibilityRole="alert" style={{ ...theme.font.body, color: theme.colors.danger, marginBottom: theme.spacing(3) }}>
+          {`Could not save: ${error}`}
+        </Text>
+      )}
+      <PrimaryButton label="Save" accessibilityLabel="Save week" disabled={busy} onPress={() => void save()} />
     </ScrollView>
   );
 }
