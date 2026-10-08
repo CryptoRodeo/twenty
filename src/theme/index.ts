@@ -10,6 +10,7 @@ export const theme = {
     sixCount: '#3B82F6',
     navySeal: '#22C55E',
     danger: '#EF4444',
+    scrim: '#000000AA', // modal backdrop
   },
   radii: { card: 16, pill: 999 },
   spacing: (n: number): number => n * 4,
