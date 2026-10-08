@@ -344,10 +344,29 @@ describe('importSessions', () => {
         : (real as (...x: unknown[]) => unknown)(sql, ...a)) as never);
     await expect(useAppStore.getState().importSessions([
       row('SIX_COUNT', '2026-09-01T12:00:00.000Z', 160),
-    ])).resolves.toBeUndefined();
+    ])).resolves.toEqual({ imported: 1, skipped: 0 });
     spy.mockRestore();
     expect(await listSessions(db)).toHaveLength(1);
     expect(useAppStore.getState().sessions).toHaveLength(1);
+  });
+
+  it('skips rows identical to a stored session and counts them (I4)', async () => {
+    const first = [
+      row('SIX_COUNT', new Date(2026, 8, 1, 12).toISOString(), 160),
+      row('NAVY_SEAL', new Date(2026, 8, 3, 12).toISOString(), 60),
+    ];
+    await expect(useAppStore.getState().importSessions(first)).resolves.toEqual({ imported: 2, skipped: 0 });
+    const again = [
+      // Same local date, movement, duration and reps (time of day differs): a duplicate.
+      row('SIX_COUNT', new Date(2026, 8, 1, 7).toISOString(), 160),
+      row('NAVY_SEAL', new Date(2026, 8, 3, 12).toISOString(), 61), // different reps
+      { ...row('NAVY_SEAL', new Date(2026, 8, 3, 12).toISOString(), 60), durationSec: 600 }, // different duration
+      row('SIX_COUNT', new Date(2026, 8, 2, 12).toISOString(), 160), // different date
+    ];
+    await expect(useAppStore.getState().importSessions(again)).resolves.toEqual({ imported: 3, skipped: 1 });
+    expect(await listSessions(db)).toHaveLength(5);
+    await expect(useAppStore.getState().importSessions(first)).resolves.toEqual({ imported: 0, skipped: 2 });
+    expect(await listSessions(db)).toHaveLength(5);
   });
 
   it('re-plans the current week\'s open slots from the imported history', async () => {

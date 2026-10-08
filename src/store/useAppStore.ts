@@ -27,6 +27,17 @@ import type {
 
 export type { NewSession };
 
+export interface ImportResult {
+  imported: number;
+  /** Rows identical to a session already stored, so not imported again. */
+  skipped: number;
+}
+
+/** Identity used to spot a re-pasted CSV row: local date, movement, duration, reps. */
+function sessionKey(s: NewSession): string {
+  return `${toIsoDate(new Date(s.startedAt))}|${s.movement}|${s.durationSec}|${s.completedReps}`;
+}
+
 export interface AppState {
   ready: boolean;
   db: Db | null;
@@ -55,8 +66,12 @@ export interface AppState {
   restoreBackup: (json: string) => Promise<void>;
   /** Save the baseline, then restart this week's open slots with the first-week rule. */
   importBaseline: (b: Baseline) => Promise<void>;
-  /** Append imported sessions, then restart this week's open slots with the first-week rule. */
-  importSessions: (rows: NewSession[]) => Promise<void>;
+  /**
+   * Append imported sessions, skipping rows identical to a stored session (same
+   * date, movement, duration and reps), then restart this week's open slots
+   * with the first-week rule.
+   */
+  importSessions: (rows: NewSession[]) => Promise<ImportResult>;
   ensureWeek: (now: Date) => Promise<void>;
 }
 
@@ -286,7 +301,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   importSessions: async (rows) => {
     const db = requireDb(get());
-    await insertSessions(db, rows.map((row) => ({ ...row, id: newId() })));
+    const stored = new Set((await listSessions(db)).map(sessionKey));
+    const fresh = rows.filter((row) => !stored.has(sessionKey(row)));
+    const result: ImportResult = { imported: fresh.length, skipped: rows.length - fresh.length };
+    if (fresh.length === 0) return result;
+    await insertSessions(db, fresh.map((row) => ({ ...row, id: newId() })));
     // The rows are committed: a failure past this point must not report a failed
     // import (a retry would duplicate them). The foreground ensureWeek / next launch heals.
     try {
@@ -294,6 +313,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch {
       try { await get().reload(); } catch { /* intentionally ignored */ }
     }
+    return result;
   },
 
   ensureWeek: async (now) => {
