@@ -21,7 +21,7 @@ import {
 } from '@/domain/stats';
 import { DAY_LETTERS, addDays, dayIndex, parseIsoDate, toIsoDate, weekStartIso } from '@/domain/time';
 import type {
-  Baseline, LevelEvent, Movement, MovementMap, NewSession, PlannedSession, Session, Settings,
+  Baseline, LevelEvent, Movement, PlanDay, MovementMap, NewSession, PlannedSession, Session, Settings,
 } from '@/domain/types';
 
 export type { NewSession };
@@ -67,7 +67,9 @@ async function reconcileLevelEvents(db: Db, baseline: Baseline | null): Promise<
 }
 
 /** Plan one week from the current progression (pure read of db + state). */
-async function buildWeek(db: Db, state: AppState, now: Date): Promise<PlannedSession[]> {
+async function buildWeek(
+  db: Db, state: AppState, now: Date, planDays: PlanDay[] = state.settings.planDays,
+): Promise<PlannedSession[]> {
   const weekStart = weekStartIso(now);
   const progression = computeProgression({
     sessions: state.sessions, baseline: state.baseline, now,
@@ -77,7 +79,7 @@ async function buildWeek(db: Db, state: AppState, now: Date): Promise<PlannedSes
   const previousWeek = await listWeek(db, toIsoDate(addDays(parseIsoDate(weekStart), -7)));
   return planWeek({
     weekStart,
-    planDays: state.settings.planDays,
+    planDays,
     previousWeek,
     sessions: state.sessions,
     landmarks,
@@ -95,7 +97,9 @@ async function replanOpenSlots(db: Db, state: AppState, now: Date): Promise<void
   if (existing.length === 0) return;
   const linkedIds = new Set(existing.filter((p) => p.sessionId !== undefined).map((p) => p.id));
   await deleteUnlinkedWeek(db, weekStart);
-  const fresh = await buildWeek(db, state, now);
+  // Edit Week applies from next week: keep this week's day/movement layout.
+  const layout = existing.map((p) => ({ dayOfWeek: p.dayOfWeek, movement: p.movement }));
+  const fresh = await buildWeek(db, state, now, layout);
   await saveWeek(db, fresh.filter((p) => !linkedIds.has(p.id)));
 }
 

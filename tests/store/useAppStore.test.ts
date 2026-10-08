@@ -251,6 +251,26 @@ describe('importBaseline re-plan', () => {
   });
 });
 
+describe('importBaseline layout', () => {
+  afterEach(() => jest.useRealTimers());
+
+  it('keeps this week\'s slots when planDays changed after planning', async () => {
+    jest.useFakeTimers({ now: NOW, doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval'] });
+    await useAppStore.getState().ensureWeek(NOW);
+    const before = await listWeek(db, '2026-10-05');
+    useAppStore.setState({
+      settings: { ...useAppStore.getState().settings, planDays: [{ dayOfWeek: 4, movement: 'SIX_COUNT' }] },
+    });
+    await useAppStore.getState().importBaseline(
+      makeBaseline({ startLevelOrder: 9, bestLandmark: { SIX_COUNT: 300, NAVY_SEAL: 135 } }),
+    );
+    const after = await listWeek(db, '2026-10-05');
+    const shape = (w: typeof before) => w.map((p) => [p.id, p.dayOfWeek, p.movement]);
+    expect(shape(after)).toEqual(shape(before));
+    expect(after.every((p) => p.targetReps > 1)).toBe(true);
+  });
+});
+
 describe('selectors', () => {
   it('selectWeek returns seven days with today flagged', async () => {
     await useAppStore.getState().ensureWeek(NOW);
