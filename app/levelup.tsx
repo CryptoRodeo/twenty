@@ -1,8 +1,8 @@
 import { Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { PrimaryButton } from '@/components/PrimaryButton';
-import { levelByOrder, nextLevelAfter } from '@/domain/levels';
-import { useAppStore } from '@/store/useAppStore';
+import { GRADUATION_VALID_DAYS, levelByOrder } from '@/domain/levels';
+import { selectProgression, useAppStore } from '@/store/useAppStore';
 import { theme } from '@/theme';
 
 export default function LevelUpScreen() {
@@ -10,7 +10,8 @@ export default function LevelUpScreen() {
   const { order } = useLocalSearchParams<{ order: string }>();
   const clearLevelUp = useAppStore((s) => s.clearLevelUp);
   const level = levelByOrder(Number(order));
-  const next = nextLevelAfter(level.order);
+  // Honours the chosen target level, like Home's "Working toward".
+  const next = useAppStore((s) => selectProgression(s, new Date()).nextLevel);
 
   return (
     <View
@@ -31,7 +32,7 @@ export default function LevelUpScreen() {
       <Text style={{ ...theme.font.body, color: theme.colors.textDim, textAlign: 'center' }}>
         {next
           ? `Next: ${next.name} — ${next.targets.SIX_COUNT} / ${next.targets.NAVY_SEAL}`
-          : 'Program complete — keep re-confirming graduation every 30 days.'}
+          : `Program complete — keep re-confirming graduation every ${GRADUATION_VALID_DAYS} days.`}
       </Text>
       <PrimaryButton
         label="Continue"

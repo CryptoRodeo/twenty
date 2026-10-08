@@ -3,7 +3,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { Card } from '@/components/Card';
 import { movementColor } from '@/components/MovementBadge';
 import { ProgressBar } from '@/components/ProgressBar';
-import { GRADUATION_ORDER, GRADUATION_VALID_DAYS, LANDMARK_DURATION_SEC, MOVEMENTS, MOVEMENT_LABEL, levelByOrder } from '@/domain/levels';
+import { GRADUATION_ORDER, GRADUATION_VALID_DAYS, LANDMARK_DURATION_SEC, LANDMARK_MINUTES, MOVEMENTS, MOVEMENT_LABEL, levelByOrder } from '@/domain/levels';
 import { formatClock } from '@/domain/pacing';
 import { isLandmarkEligible } from '@/domain/progression';
 import { selectProgression, useAppStore } from '@/store/useAppStore';
@@ -56,7 +56,7 @@ export default function LevelDetailScreen() {
               </Text>
               {best.length === 0 ? (
                 <Text style={{ ...theme.font.body, color: theme.colors.textDim }}>
-                  No 20-minute attempts logged yet.
+                  {`No ${LANDMARK_MINUTES}-minute attempts logged yet.`}
                 </Text>
               ) : (
                 best.map((s) => (

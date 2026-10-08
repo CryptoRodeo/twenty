@@ -3,6 +3,9 @@ import type { Movement, MovementMap } from './types';
 /** A landmark attempt must be exactly this long. */
 export const LANDMARK_DURATION_SEC = 1200;
 
+/** The landmark window in whole minutes, for copy ("20-minute"). */
+export const LANDMARK_MINUTES = LANDMARK_DURATION_SEC / 60;
+
 /** Graduation must be re-confirmed inside this many days. */
 export const GRADUATION_VALID_DAYS = 30;
 

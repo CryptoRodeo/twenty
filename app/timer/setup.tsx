@@ -70,7 +70,7 @@ export default function TimerSetupScreen() {
         </Text>
         {!isLandmarkWindow && (
           <Text style={{ ...theme.font.body, color: theme.colors.textDim, marginTop: theme.spacing(2) }}>
-            This counts toward your stats, but only a 20:00 session can unlock a landmark.
+            {`This counts toward your stats, but only a ${formatClock(LANDMARK_DURATION_SEC)} session can unlock a landmark.`}
           </Text>
         )}
       </Card>

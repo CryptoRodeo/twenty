@@ -30,7 +30,7 @@ level unlocks, graduation rules, planner adjustments and timer math.
 | What | File |
 |---|---|
 | Level names and rep targets | `src/domain/levels.ts` |
-| Landmark window (20:00) and graduation validity (30 days) | `src/domain/levels.ts` |
+| Landmark window (`LANDMARK_DURATION_SEC`) and graduation validity (`GRADUATION_VALID_DAYS`) | `src/domain/levels.ts` |
 | Weekly target adjustment rules | `src/domain/planner.ts` |
 | Default planned days and weekly minute goal | `src/domain/planner.ts` |
 | Pacing / cue timing math | `src/domain/pacing.ts` |
@@ -56,7 +56,8 @@ below it count as completed.
   across any sessions. One big result can unlock several levels at once, and
   reaching a level completes all lower levels.
 - **Graduation** additionally requires both landmarks in the **same Mon-Sun
-  week**, and must be re-confirmed every **30 days** or the level drops back
+  week**, and must be re-confirmed within **`GRADUATION_VALID_DAYS`** days
+  (`src/domain/levels.ts`) or the level drops back
   to 4B. History is kept either way.
 - **Streak** = consecutive Mon-Sun weeks, counting back from this week (or
   last week if this week has not reached the goal yet), in which logged
@@ -66,7 +67,9 @@ below it count as completed.
   after hitting the target (smaller if it felt hard), flat at maximum effort
   or a near miss, and a back-off after missing by more than 5%. A missed
   session never stacks. When a target reaches the next landmark, that day
-  becomes a **Landmark attempt**.
+  becomes a **Landmark attempt**. A week opens with the first-week rule (`FIRST_WEEK_FRACTION`
+  of the next landmark, or your best if higher) when you choose a level,
+  import progress, or after a level-up; adjustment continues from there.
 - **Edit Week** changes the layout from the **following** week; an existing
   planned week is never overwritten.
 - **Backup**: Settings can export everything as JSON and restore it later.

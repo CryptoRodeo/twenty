@@ -4,7 +4,7 @@ import { Card } from '@/components/Card';
 import { LandmarkProgress } from '@/components/LandmarkProgress';
 import { MovementBadge, movementColor } from '@/components/MovementBadge';
 import { PrimaryButton } from '@/components/PrimaryButton';
-import { LANDMARK_DURATION_SEC, MOVEMENTS, MOVEMENT_LABEL } from '@/domain/levels';
+import { LANDMARK_DURATION_SEC, LANDMARK_MINUTES, MOVEMENTS, MOVEMENT_LABEL } from '@/domain/levels';
 import { formatClock } from '@/domain/pacing';
 import { DAY_NAMES, dayIndex, weekStartIso } from '@/domain/time';
 import { selectNextPlan, selectProgression, selectWeek, useAppStore } from '@/store/useAppStore';
@@ -108,7 +108,7 @@ export default function TrainScreen() {
       </ScrollView>
 
       <Text style={{ ...theme.font.body, color: theme.colors.textDim }}>
-        A valid 20-minute result can unlock a landmark.
+        {`A valid ${LANDMARK_MINUTES}-minute result can unlock a landmark.`}
       </Text>
     </ScrollView>
   );

@@ -5,7 +5,7 @@ import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { CSV_HEADER, parseSessionCsv } from '@/domain/csv';
-import { LEVELS } from '@/domain/levels';
+import { LANDMARK_MINUTES, LEVELS } from '@/domain/levels';
 import { ZERO_BASELINE } from '@/domain/progression';
 import type { Baseline } from '@/domain/types';
 import { useAppStore } from '@/store/useAppStore';
@@ -145,7 +145,7 @@ export default function ImportScreen() {
 
       <Card title="Level you're working on">
         <Text style={{ ...theme.font.body, color: theme.colors.textDim, marginBottom: theme.spacing(3) }}>
-          Choosing a level completes nothing; reach its landmarks in a 20-minute session to complete it.
+          {`Choosing a level completes nothing; reach its landmarks in a ${LANDMARK_MINUTES}-minute session to complete it.`}
         </Text>
         <Text accessibilityLabel="Level you're working on" style={{ ...theme.font.h2, color: theme.colors.text, marginBottom: theme.spacing(3) }}>
           {levelOrder === null ? 'Not started' : LEVELS[levelOrder]!.name}
@@ -164,8 +164,8 @@ export default function ImportScreen() {
       </Card>
 
       <Card title="Personal bests and totals">
-        {numberField('bestSix', 'Best 6-count in 20 minutes')}
-        {numberField('bestNavy', 'Best Navy Seal in 20 minutes')}
+        {numberField('bestSix', `Best 6-count in ${LANDMARK_MINUTES} minutes`)}
+        {numberField('bestNavy', `Best Navy Seal in ${LANDMARK_MINUTES} minutes`)}
         {numberField('totalSix', 'Total 6-counts')}
         {numberField('totalNavy', 'Total Navy Seals')}
         {numberField('workouts', 'Workouts')}

@@ -30,4 +30,9 @@ describe('README examples', () => {
     expect((await listSessions(db)).map((s) => s.id)).toEqual(['s1']);
     db.close();
   });
+
+  it('names the graduation window by its constant rather than a hard-coded day count', () => {
+    expect(readme).toContain('GRADUATION_VALID_DAYS');
+    expect(readme).not.toMatch(/\b30 days\b/);
+  });
 });
