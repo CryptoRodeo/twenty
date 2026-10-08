@@ -124,15 +124,15 @@ describe('home screen', () => {
       expect(screen.getByText(/change this later in Settings/)).toBeTruthy();
     });
 
-    it('choosing 1C and confirming sets the target then saves the zero baseline', async () => {
+    it('choosing 1C and confirming saves the zero baseline then sets the target last', async () => {
       mockState = freshState();
       render(<HomeScreen />);
       fireEvent.press(screen.getByLabelText('Start level 1C'));
       fireEvent.press(screen.getByLabelText('Start at selected level'));
-      await waitFor(() => expect(mockImportBaseline).toHaveBeenCalledWith(ZERO_BASELINE));
-      expect(mockSetTargetLevel).toHaveBeenCalledWith(2);
-      expect(mockSetTargetLevel.mock.invocationCallOrder[0]!)
-        .toBeLessThan(mockImportBaseline.mock.invocationCallOrder[0]!);
+      await waitFor(() => expect(mockSetTargetLevel).toHaveBeenCalledWith(2));
+      expect(mockImportBaseline).toHaveBeenCalledWith(ZERO_BASELINE);
+      expect(mockImportBaseline.mock.invocationCallOrder[0]!)
+        .toBeLessThan(mockSetTargetLevel.mock.invocationCallOrder[0]!);
     });
 
     it('ignores a second tap while saving', async () => {
@@ -140,8 +140,8 @@ describe('home screen', () => {
       render(<HomeScreen />);
       fireEvent.press(screen.getByLabelText('Start at selected level'));
       fireEvent.press(screen.getByLabelText('Start at selected level'));
-      await waitFor(() => expect(mockImportBaseline).toHaveBeenCalledTimes(1));
-      expect(mockSetTargetLevel).toHaveBeenCalledTimes(1);
+      await waitFor(() => expect(mockSetTargetLevel).toHaveBeenCalledTimes(1));
+      expect(mockImportBaseline).toHaveBeenCalledTimes(1);
     });
 
     it('the import link navigates', () => {

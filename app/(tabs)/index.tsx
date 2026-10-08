@@ -34,8 +34,9 @@ export default function HomeScreen() {
     setBusy(true);
     setStartError(null);
     try {
-      await setTargetLevel(chosen);
+      // The level choice goes last so nothing after it re-plans this week's targets.
       await importBaseline(ZERO_BASELINE);
+      await setTargetLevel(chosen);
     } catch (e) {
       setStartError(e instanceof Error ? e.message : String(e));
     } finally {
