@@ -5,12 +5,14 @@ import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Stepper } from '@/components/Stepper';
-import { LANDMARK_DURATION_SEC, levelByOrder, MOVEMENT_LABEL, MOVEMENTS } from '@/domain/levels';
+import { LANDMARK_DURATION_SEC, MOVEMENT_LABEL, MOVEMENTS } from '@/domain/levels';
 import { formatClock, intervalSec } from '@/domain/pacing';
 import type { Movement, SessionKind } from '@/domain/types';
 import { selectNextPlan, useAppStore } from '@/store/useAppStore';
 import { theme } from '@/theme';
 
+/** UI default for a custom workout with no plan; not a level target. */
+const DEFAULT_CUSTOM_REPS = 100;
 const MIN_DURATION_SEC = 60;
 const DURATION_STEP_SEC = 60;
 
@@ -25,7 +27,7 @@ export default function TimerSetupScreen() {
     (params.movement as Movement | undefined) ?? fallback?.movement ?? 'SIX_COUNT',
   );
   const [targetReps, setTargetReps] = useState<number>(
-    Number(params.targetReps ?? fallback?.targetReps ?? levelByOrder(0).targets[movement]),
+    Number(params.targetReps ?? fallback?.targetReps ?? DEFAULT_CUSTOM_REPS),
   );
   const [durationSec, setDurationSec] = useState<number>(
     Number(params.durationSec ?? LANDMARK_DURATION_SEC),

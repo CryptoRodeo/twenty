@@ -62,4 +62,11 @@ describe('timer setup', () => {
       params: { ...BASE, plannedId: 'p-42' },
     });
   });
+
+  it('defaults to 100 reps when there are no params and no plan', () => {
+    mockParams = {};
+    render(<TimerSetupScreen />);
+    expect(screen.getByText('100')).toBeTruthy();
+    expect(screen.getByText('1 rep every 12.00 s')).toBeTruthy();
+  });
 });
