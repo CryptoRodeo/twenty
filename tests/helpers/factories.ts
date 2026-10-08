@@ -1,5 +1,6 @@
 import type { Baseline, Session } from '@/domain/types';
 import { LANDMARK_DURATION_SEC } from '@/domain/levels';
+import { ZERO_BASELINE } from '@/domain/progression';
 
 let seq = 0;
 
@@ -18,14 +19,7 @@ export function makeSession(overrides: Partial<Session> = {}): Session {
   };
 }
 
-export const EMPTY_BASELINE: Baseline = {
-  startLevelOrder: null,
-  bestLandmark: { SIX_COUNT: 0, NAVY_SEAL: 0 },
-  totalReps: { SIX_COUNT: 0, NAVY_SEAL: 0 },
-  workouts: 0,
-  streakWeeks: 0,
-  graduationWeekStart: null,
-};
+export const EMPTY_BASELINE = ZERO_BASELINE;
 
 export function makeBaseline(overrides: Partial<Baseline> = {}): Baseline {
   return { ...EMPTY_BASELINE, ...overrides };

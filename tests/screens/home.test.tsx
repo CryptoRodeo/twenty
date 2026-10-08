@@ -1,19 +1,24 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { ZERO_BASELINE } from '@/domain/progression';
 import HomeScreen from '../../app/(tabs)/index';
 
 const mockPush = jest.fn();
 let mockWeek: Record<string, unknown>;
 let mockProgression: Record<string, unknown>;
+let mockState: Record<string, unknown>;
+const mockImportBaseline = jest.fn();
 
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('@/store/useAppStore', () => ({
-  useAppStore: (selector: (s: unknown) => unknown) => selector({}),
+  useAppStore: (selector: (s: unknown) => unknown) => selector(mockState),
   selectWeek: () => mockWeek,
   selectProgression: () => mockProgression,
 }));
 
 beforeEach(() => {
   mockPush.mockClear();
+  mockImportBaseline.mockReset().mockResolvedValue(undefined);
+  mockState = { baseline: ZERO_BASELINE, sessions: [], importBaseline: mockImportBaseline };
   mockWeek = {
     weekStart: '2026-10-05',
     minutesDone: 40,
@@ -95,5 +100,36 @@ describe('home screen', () => {
     render(<HomeScreen />);
     fireEvent.press(screen.getByLabelText('Edit week'));
     expect(mockPush).toHaveBeenCalledWith('/week/edit');
+  });
+
+  describe('import card', () => {
+    it('is shown on a fresh store with the two actions', async () => {
+      mockState = { baseline: null, sessions: [], importBaseline: mockImportBaseline };
+      render(<HomeScreen />);
+      expect(screen.getByText('Import existing progress')).toBeTruthy();
+      fireEvent.press(screen.getByLabelText('Import'));
+      expect(mockPush).toHaveBeenCalledWith('/onboarding/import');
+      fireEvent.press(screen.getByLabelText('Not now'));
+      await waitFor(() => expect(mockImportBaseline).toHaveBeenCalledWith(ZERO_BASELINE));
+    });
+
+    it('is hidden once a baseline exists', () => {
+      render(<HomeScreen />);
+      expect(screen.queryByText('Import existing progress')).toBeNull();
+    });
+
+    it('is hidden once a session exists', () => {
+      mockState = { baseline: null, sessions: [{ id: 's' }], importBaseline: mockImportBaseline };
+      render(<HomeScreen />);
+      expect(screen.queryByText('Import existing progress')).toBeNull();
+    });
+
+    it('shows an error when Not now fails to save', async () => {
+      mockState = { baseline: null, sessions: [], importBaseline: mockImportBaseline };
+      mockImportBaseline.mockRejectedValue(new Error('disk full'));
+      render(<HomeScreen />);
+      fireEvent.press(screen.getByLabelText('Not now'));
+      expect(await screen.findByText('Could not save: disk full')).toBeTruthy();
+    });
   });
 });

@@ -43,6 +43,7 @@ export interface AppState {
   removeSession: (id: string) => Promise<void>;
   updateSettings: (patch: Partial<Settings>) => Promise<void>;
   importBaseline: (b: Baseline) => Promise<void>;
+  importSessions: (rows: NewSession[]) => Promise<void>;
   ensureWeek: (now: Date) => Promise<void>;
 }
 
@@ -102,6 +103,19 @@ async function replanOpenSlots(db: Db, state: AppState, now: Date): Promise<void
   const layout = existing.map((p) => ({ dayOfWeek: p.dayOfWeek, movement: p.movement }));
   const fresh = await buildWeek(db, state, now, layout);
   await saveWeek(db, fresh.filter((p) => !linkedIds.has(p.id)));
+}
+
+/**
+ * After history or baseline changes: rebuild level events, refresh state, then
+ * re-plan this week's open slots (and plan the week if it does not exist yet).
+ */
+async function settleDerivedState(db: Db, get: () => AppState): Promise<void> {
+  await reconcileLevelEvents(db, get().baseline);
+  await get().reload();
+  // Targets planned before the import were 1A-level; re-plan the open slots.
+  await replanOpenSlots(db, get(), new Date());
+  await get().ensureWeek(new Date());
+  await get().reload();
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -185,11 +199,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     const db = requireDb(get());
     await saveBaseline(db, b);
     set({ baseline: b });
-    await reconcileLevelEvents(db, b);
-    // Targets planned before the import were 1A-level; re-plan the open slots.
-    await replanOpenSlots(db, get(), new Date());
-    await get().ensureWeek(new Date());
-    await get().reload();
+    await settleDerivedState(db, get);
+  },
+
+  importSessions: async (rows) => {
+    const db = requireDb(get());
+    for (const row of rows) {
+      await insertSession(db, { ...row, id: newId() });
+    }
+    await settleDerivedState(db, get);
   },
 
   ensureWeek: async (now) => {

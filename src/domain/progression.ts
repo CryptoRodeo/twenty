@@ -247,3 +247,13 @@ export function graduationWarning(state: ProgressionState): string | null {
   const d = state.daysUntilGraduationExpiry;
   return d === 1 ? 'Graduation expires in 1 day' : `Graduation expires in ${d} days`;
 }
+
+/** All-zeros baseline. Saving this is how "skip the import" is recorded. */
+export const ZERO_BASELINE: Baseline = {
+  startLevelOrder: null,
+  bestLandmark: { ...ZERO_REPS },
+  totalReps: { ...ZERO_REPS },
+  workouts: 0,
+  streakWeeks: 0,
+  graduationWeekStart: null,
+};

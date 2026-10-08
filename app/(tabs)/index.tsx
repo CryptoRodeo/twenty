@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Card } from '@/components/Card';
@@ -5,8 +6,9 @@ import { DayCircles } from '@/components/DayCircles';
 import { LandmarkProgress } from '@/components/LandmarkProgress';
 import { movementColor } from '@/components/MovementBadge';
 import { ProgressBar } from '@/components/ProgressBar';
+import { PrimaryButton } from '@/components/PrimaryButton';
 import { MOVEMENTS, MOVEMENT_LABEL } from '@/domain/levels';
-import { graduationWarning } from '@/domain/progression';
+import { ZERO_BASELINE, graduationWarning } from '@/domain/progression';
 import { DAY_NAMES } from '@/domain/time';
 import { selectProgression, selectWeek, useAppStore } from '@/store/useAppStore';
 import { theme } from '@/theme';
@@ -17,12 +19,40 @@ export default function HomeScreen() {
   const week = useAppStore((s) => selectWeek(s, now));
   const progression = useAppStore((s) => selectProgression(s, now));
   const warning = graduationWarning(progression);
+  const showImport = useAppStore((s) => s.baseline === null && s.sessions.length === 0);
+  const importBaseline = useAppStore((s) => s.importBaseline);
+  const [importError, setImportError] = useState<string | null>(null);
+
+  async function dismissImport(): Promise<void> {
+    setImportError(null);
+    try {
+      await importBaseline(ZERO_BASELINE);
+    } catch (e) {
+      setImportError(e instanceof Error ? e.message : String(e));
+    }
+  }
 
   return (
     <ScrollView
       contentContainerStyle={{ padding: theme.spacing(4) }}
       style={{ backgroundColor: theme.colors.bg }}
     >
+      {showImport && (
+        <Card title="Import existing progress">
+          <Text style={{ ...theme.font.body, color: theme.colors.textDim, marginBottom: theme.spacing(3) }}>
+            Already been training? Bring your level, personal bests and totals with you.
+          </Text>
+          {importError !== null && (
+            <Text style={{ ...theme.font.body, color: theme.colors.danger, marginBottom: theme.spacing(3) }}>
+              {`Could not save: ${importError}`}
+            </Text>
+          )}
+          <View style={{ gap: theme.spacing(3) }}>
+            <PrimaryButton label="Import" onPress={() => router.push('/onboarding/import')} />
+            <PrimaryButton label="Not now" variant="ghost" onPress={() => void dismissImport()} />
+          </View>
+        </Card>
+      )}
       <Card
         title="This week's plan"
         right={

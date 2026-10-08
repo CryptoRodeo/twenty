@@ -291,6 +291,38 @@ describe('importBaseline failure', () => {
   });
 });
 
+describe('importSessions', () => {
+  afterEach(() => jest.useRealTimers());
+
+  const row = (movement: 'SIX_COUNT' | 'NAVY_SEAL', startedAt: string, reps: number) => ({
+    movement, startedAt, durationSec: 1200, targetReps: reps, completedReps: reps,
+    effort: 8, kind: 'LANDMARK' as const,
+  });
+
+  it('inserts a batch and derives levels from it', async () => {
+    await useAppStore.getState().importSessions([
+      row('SIX_COUNT', '2026-09-01T12:00:00.000Z', 160),
+      row('NAVY_SEAL', '2026-09-03T12:00:00.000Z', 60),
+    ]);
+    expect(useAppStore.getState().sessions).toHaveLength(2);
+    expect(selectProgression(useAppStore.getState(), NOW).currentLevel!.name).toBe('1D');
+    expect((await listLevelEvents(db)).length).toBeGreaterThan(0);
+  });
+
+  it('re-plans the current week\'s open slots from the imported history', async () => {
+    jest.useFakeTimers({ now: NOW, doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval'] });
+    await useAppStore.getState().ensureWeek(NOW);
+    expect((await listWeek(db, '2026-10-05')).every((p) => p.targetReps === 1)).toBe(true);
+    await useAppStore.getState().importSessions([
+      row('SIX_COUNT', new Date(2026, 8, 20, 12).toISOString(), 160),
+      row('NAVY_SEAL', new Date(2026, 8, 21, 12).toISOString(), 60),
+    ]);
+    const week = await listWeek(db, '2026-10-05');
+    expect(week.length).toBeGreaterThan(0);
+    expect(week.every((p) => p.targetReps > 1)).toBe(true);
+  });
+});
+
 describe('selectors', () => {
   it('selectWeek returns seven days with today flagged', async () => {
     await useAppStore.getState().ensureWeek(NOW);
