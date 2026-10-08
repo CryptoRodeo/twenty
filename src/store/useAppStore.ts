@@ -14,7 +14,7 @@ import {
   DEFAULT_SETTINGS, getBaseline, getSettings, saveBaseline, saveSettings,
 } from '@/data/settingsRepo';
 import { GRADUATION_ORDER, MOVEMENT_SHORT, MOVEMENTS } from '@/domain/levels';
-import { movementForDay, planWeek } from '@/domain/planner';
+import { planWeek } from '@/domain/planner';
 import { computeLevelEvents, computeProgression, type ProgressionState } from '@/domain/progression';
 import {
   computeRecords, computeStreakWeeks, computeTotals, weeklyMinutes,
@@ -341,7 +341,9 @@ export function selectWeek(s: AppState, now: Date): WeekView {
 
   const days: WeekDayView[] = DAY_LETTERS.map((letter, d) => {
     const slot = planned.find((p) => p.dayOfWeek === d) ?? null;
-    const movement = slot?.movement ?? movementForDay(s.settings.planDays, d);
+    // Same source as Train: only this week's planned rows. No slot = rest day,
+    // even when Edit Week has added the day from next week.
+    const movement = slot?.movement ?? null;
     return {
       dayOfWeek: d,
       letter,

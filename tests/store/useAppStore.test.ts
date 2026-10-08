@@ -378,6 +378,18 @@ describe('selectors', () => {
     expect(view.minutesDone).toBe(0);
   });
 
+  it('selectWeek circles come from this week\'s planned rows, not an Edit Week change (I2)', async () => {
+    await useAppStore.getState().ensureWeek(NOW);
+    const before = selectWeek(useAppStore.getState(), NOW).days;
+    await useAppStore.getState().updateSettings({
+      planDays: [...useAppStore.getState().settings.planDays, { dayOfWeek: 3, movement: 'NAVY_SEAL' }],
+    });
+    const after = selectWeek(useAppStore.getState(), NOW).days;
+    expect(after).toEqual(before);
+    expect(after[3]!.movement).toBeNull(); // Thursday stays a rest day this week
+    expect(after[3]!.short).toBeNull();
+  });
+
   it('selectWeek counts minutes and marks completed days', async () => {
     await useAppStore.getState().ensureWeek(NOW);
     await useAppStore.getState().addSession({

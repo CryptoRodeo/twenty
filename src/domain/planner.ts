@@ -1,5 +1,5 @@
 import { MOVEMENTS } from './levels';
-import type { Movement, MovementMap, PlanDay, PlannedSession, Session } from './types';
+import type { MovementMap, PlanDay, PlannedSession, Session } from './types';
 
 /** Matches the owner's current habit; editable on the Edit Week screen. */
 export const DEFAULT_PLAN_DAYS: PlanDay[] = [
@@ -115,11 +115,6 @@ export function nextWeekTargets(input: NextWeekInput): MovementMap<number> {
     });
   }
   return out;
-}
-
-/** Which movement, if any, is planned for a given day index. */
-export function movementForDay(planDays: PlanDay[], dayOfWeek: number): Movement | null {
-  return planDays.find((d) => d.dayOfWeek === dayOfWeek)?.movement ?? null;
 }
 
 export interface PlanWeekInput {
