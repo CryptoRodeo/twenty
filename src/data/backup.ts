@@ -95,8 +95,18 @@ function parseBackup(json: string): BackupFile {
         && (d.dayOfWeek as number) <= 6 && isMovement(d.movement))));
     if (!ok) throw unreadable('the settings are malformed (check goal, count-in, sound, haptics, level and plan days)');
   }
-  if (raw.baseline !== undefined && raw.baseline !== null && !isRecord(raw.baseline)) {
-    throw unreadable('the baseline is malformed');
+  if (raw.baseline !== undefined && raw.baseline !== null) {
+    const b = raw.baseline;
+    const count = (v: unknown): boolean => typeof v === 'number' && Number.isFinite(v) && v >= 0;
+    const perMovement = (v: unknown): boolean => isRecord(v) && MOVEMENTS.every((m) => count(v[m]));
+    const ok = isRecord(b)
+      && (b.startLevelOrder === null || (Number.isInteger(b.startLevelOrder)
+        && (b.startLevelOrder as number) >= 0 && (b.startLevelOrder as number) <= GRADUATION_ORDER))
+      && perMovement(b.bestLandmark) && perMovement(b.totalReps)
+      && count(b.workouts) && count(b.streakWeeks)
+      && (b.graduationWeekStart === null || (typeof b.graduationWeekStart === 'string'
+        && /^\d{4}-\d{2}-\d{2}$/.test(b.graduationWeekStart)));
+    if (!ok) throw unreadable('the baseline is malformed (check level, bests, totals, workouts, streak and graduation week)');
   }
   return raw as unknown as BackupFile;
 }

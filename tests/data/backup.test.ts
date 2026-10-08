@@ -106,7 +106,29 @@ describe('backup', () => {
       ['weeklyGoalMin', (b) => { (b.settings as never as Record<string, unknown>).weeklyGoalMin = '80'; }],
       ['soundOn', (b) => { (b.settings as never as Record<string, unknown>).soundOn = 'yes'; }],
       ['planDays', (b) => { (b.settings as never as Record<string, unknown>).planDays = [{ dayOfWeek: 9, movement: 'SIX_COUNT' }]; }],
+      ['baseline not an object', (b) => { (b as Record<string, unknown>).baseline = 'x'; }],
+      ['baseline partial', (b) => { (b as Record<string, unknown>).baseline = { workouts: 3 }; }],
+      ['baseline string reps', (b) => {
+        (b as Record<string, unknown>).baseline = { ...makeBaseline(), bestLandmark: { SIX_COUNT: '300', NAVY_SEAL: 135 } };
+      }],
+      ['baseline missing movement total', (b) => {
+        (b as Record<string, unknown>).baseline = { ...makeBaseline(), totalReps: { SIX_COUNT: 10 } };
+      }],
+      ['baseline negative workouts', (b) => { (b as Record<string, unknown>).baseline = { ...makeBaseline(), workouts: -1 }; }],
+      ['baseline streak NaN-ish', (b) => { (b as Record<string, unknown>).baseline = { ...makeBaseline(), streakWeeks: '4' }; }],
+      ['baseline level out of range', (b) => {
+        (b as Record<string, unknown>).baseline = { ...makeBaseline(), startLevelOrder: 11 };
+      }],
+      ['baseline graduation week', (b) => {
+        (b as Record<string, unknown>).baseline = { ...makeBaseline(), graduationWeekStart: 5 };
+      }],
     ];
+    it('accepts a complete baseline', async () => {
+      const b = { ...base(), baseline: makeBaseline({ startLevelOrder: 9, graduationWeekStart: '2026-09-28' }) };
+      await importBackup(db, JSON.stringify(b));
+      expect(await getBaseline(db)).toEqual(b.baseline);
+    });
+
     it.each(cases)('%s', async (_name, mutate) => {
       await insertSession(db, makeSession({ id: 'keep' }));
       const b = base();
