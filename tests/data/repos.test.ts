@@ -1,5 +1,5 @@
 import { runMigrations } from '@/data/migrations';
-import { listLevelEvents, upsertLevelEvents } from '@/data/levelEventsRepo';
+import { deleteLevelEventsExcept, listLevelEvents, upsertLevelEvents } from '@/data/levelEventsRepo';
 import { linkSession, listAllPlanned, listWeek, saveWeek } from '@/data/plannedRepo';
 import { deleteSession, getSession, insertSession, listSessions, updateSession } from '@/data/sessionsRepo';
 import { DEFAULT_SETTINGS, getBaseline, getSettings, saveBaseline, saveSettings } from '@/data/settingsRepo';
@@ -110,6 +110,18 @@ describe('levelEventsRepo', () => {
     await upsertLevelEvents(db, events);
     await upsertLevelEvents(db, events);
     expect(await listLevelEvents(db)).toEqual(events);
+  });
+
+  it('deletes events that are no longer in the keep set', async () => {
+    const events = [
+      { id: 'level-0-REACHED', levelOrder: 0, type: 'REACHED' as const, at: '2026-09-01T06:00:00.000Z' },
+      { id: 'level-1-REACHED', levelOrder: 1, type: 'REACHED' as const, at: '2026-09-03T06:00:00.000Z' },
+    ];
+    await upsertLevelEvents(db, events);
+    await deleteLevelEventsExcept(db, ['level-0-REACHED']);
+    expect(await listLevelEvents(db)).toEqual([events[0]]);
+    await deleteLevelEventsExcept(db, []);
+    expect(await listLevelEvents(db)).toEqual([]);
   });
 
   it('tolerates an empty batch', async () => {

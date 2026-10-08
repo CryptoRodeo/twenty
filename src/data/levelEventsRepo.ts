@@ -32,3 +32,13 @@ export async function listLevelEvents(db: Db): Promise<LevelEvent[]> {
     at: r.at,
   }));
 }
+
+/** Removes stored events whose ids are no longer derivable (after an edit or delete). */
+export async function deleteLevelEventsExcept(db: Db, keepIds: string[]): Promise<void> {
+  if (keepIds.length === 0) {
+    await db.runAsync('DELETE FROM level_events');
+    return;
+  }
+  const marks = keepIds.map(() => '?').join(',');
+  await db.runAsync(`DELETE FROM level_events WHERE id NOT IN (${marks})`, keepIds);
+}
