@@ -1,5 +1,5 @@
 import { runMigrations } from '@/data/migrations';
-import { listWeek } from '@/data/plannedRepo';
+import { listWeek, saveWeek } from '@/data/plannedRepo';
 import { listLevelEvents } from '@/data/levelEventsRepo';
 import { listSessions } from '@/data/sessionsRepo';
 import {
@@ -9,6 +9,8 @@ import {
   selectWeek,
   useAppStore,
 } from '@/store/useAppStore';
+import { GRADUATION_ORDER, LEVELS } from '@/domain/levels';
+import { FIRST_WEEK_FRACTION } from '@/domain/planner';
 import { weekStartIso } from '@/domain/time';
 import { makeBaseline } from '../helpers/factories';
 import { createTestDb, type TestDb } from '../helpers/testDb';
@@ -426,6 +428,14 @@ describe('selectors', () => {
   });
 });
 
+function expectFirstWeekTargets(week: { movement: string; targetReps: number }[], order: number): void {
+  expect(week.length).toBeGreaterThan(0);
+  for (const p of week) {
+    const landmark = LEVELS[order]!.targets[p.movement as 'SIX_COUNT' | 'NAVY_SEAL'];
+    expect(p.targetReps).toBe(Math.ceil(landmark * FIRST_WEEK_FRACTION));
+  }
+}
+
 describe('setTargetLevel', () => {
   afterEach(() => jest.useRealTimers());
 
@@ -441,12 +451,25 @@ describe('setTargetLevel', () => {
     expect(p.nextLevel?.name).toBe('1C');
 
     const week = await listWeek(db, '2026-10-05');
-    const six = week.filter((x) => x.movement === 'SIX_COUNT');
-    const navy = week.filter((x) => x.movement === 'NAVY_SEAL');
-    expect(six.length + navy.length).toBeGreaterThan(0);
-    // First-week fraction of the 1C landmark (100 / 40) via planWeek.
-    expect(six.every((x) => x.targetReps > 1 && x.targetReps <= 100)).toBe(true);
-    expect(navy.every((x) => x.targetReps > 1 && x.targetReps <= 40)).toBe(true);
+    expectFirstWeekTargets(week, 2);
+  });
+
+  it('restarts open targets from the first-week rule even when last week was planned', async () => {
+    jest.useFakeTimers({ now: NOW, doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval'] });
+    await saveWeek(db, [
+      { id: 'p-six', weekStart: '2026-09-28', dayOfWeek: 0, movement: 'SIX_COUNT', targetReps: 1, isTestDay: false },
+      { id: 'p-navy', weekStart: '2026-09-28', dayOfWeek: 1, movement: 'NAVY_SEAL', targetReps: 1, isTestDay: false },
+    ]);
+    await useAppStore.getState().ensureWeek(NOW);
+    await useAppStore.getState().setTargetLevel(2);
+    expectFirstWeekTargets(await listWeek(db, '2026-10-05'), 2);
+  });
+
+  it('rejects an order outside 0..GRADUATION_ORDER or non-integer', async () => {
+    for (const bad of [-1, GRADUATION_ORDER + 1, 1.5, Number.NaN]) {
+      await expect(useAppStore.getState().setTargetLevel(bad)).rejects.toThrow(/Invalid target level/);
+    }
+    expect(useAppStore.getState().settings.targetLevelOrder).toBe(0);
   });
 
   it('survives a reload', async () => {

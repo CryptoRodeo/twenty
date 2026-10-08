@@ -12,7 +12,7 @@ import {
 import {
   DEFAULT_SETTINGS, getBaseline, getSettings, saveBaseline, saveSettings,
 } from '@/data/settingsRepo';
-import { MOVEMENT_SHORT, MOVEMENTS } from '@/domain/levels';
+import { GRADUATION_ORDER, MOVEMENT_SHORT, MOVEMENTS } from '@/domain/levels';
 import { movementForDay, planWeek } from '@/domain/planner';
 import { computeLevelEvents, computeProgression, type ProgressionState } from '@/domain/progression';
 import {
@@ -71,9 +71,10 @@ async function reconcileLevelEvents(
   await deleteLevelEventsExcept(db, events.map((e) => e.id));
 }
 
-/** Plan one week from the current progression (pure read of db + state). */
+/** Plan one week from the current progression (pure read of db + state). `restart` ignores last week. */
 async function buildWeek(
   db: Db, state: AppState, now: Date, planDays: PlanDay[] = state.settings.planDays,
+  restart = false,
 ): Promise<PlannedSession[]> {
   const weekStart = weekStartIso(now);
   const progression = computeProgression({
@@ -82,7 +83,7 @@ async function buildWeek(
   });
   const landmarks = {} as MovementMap<number>;
   for (const m of MOVEMENTS) landmarks[m] = progression.nextTargets[m].target;
-  const previousWeek = await listWeek(db, toIsoDate(addDays(parseIsoDate(weekStart), -7)));
+  const previousWeek = restart ? [] : await listWeek(db, toIsoDate(addDays(parseIsoDate(weekStart), -7)));
   return planWeek({
     weekStart,
     planDays,
@@ -99,14 +100,16 @@ async function buildWeek(
  * Upserts in place (ids come from the existing layout), so a failure part-way
  * never leaves the week with fewer rows.
  */
-async function replanOpenSlots(db: Db, state: AppState, now: Date): Promise<void> {
+async function replanOpenSlots(
+  db: Db, state: AppState, now: Date, opts: { restart?: boolean } = {},
+): Promise<void> {
   const weekStart = weekStartIso(now);
   const existing = await listWeek(db, weekStart);
   if (existing.length === 0) return;
   const linkedIds = new Set(existing.filter((p) => p.sessionId !== undefined).map((p) => p.id));
   // Edit Week applies from next week: keep this week's day/movement layout.
   const layout = existing.map((p) => ({ dayOfWeek: p.dayOfWeek, movement: p.movement }));
-  const fresh = await buildWeek(db, state, now, layout);
+  const fresh = await buildWeek(db, state, now, layout, opts.restart === true);
   await saveWeek(db, fresh.filter((p) => !linkedIds.has(p.id)));
 }
 
@@ -202,8 +205,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setTargetLevel: async (order) => {
     const db = requireDb(get());
+    if (!Number.isInteger(order) || order < 0 || order > GRADUATION_ORDER) {
+      throw new Error(`Invalid target level: ${order}`);
+    }
     await get().updateSettings({ targetLevelOrder: order });
-    await replanOpenSlots(db, get(), new Date());
+    // An explicit choice restarts this week's open targets with the first-week rule.
+    await replanOpenSlots(db, get(), new Date(), { restart: true });
     await get().reload();
   },
 
