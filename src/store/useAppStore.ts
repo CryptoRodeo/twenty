@@ -100,7 +100,11 @@ function nextLandmarks(progression: ProgressionState): MovementMap<number> {
   return landmarks;
 }
 
-/** Plan one week from the current progression (pure read of db + state). `restart` ignores last week. */
+/**
+ * Plan one week from the current progression (pure read of db + state).
+ * `restart` opens every movement with the first-week rule; so does an explicit
+ * seeding action recorded last week (settings.restartWeek).
+ */
 async function buildWeek(
   db: Db, state: AppState, now: Date, planDays: PlanDay[] = state.settings.planDays,
   restart = false,
@@ -110,7 +114,7 @@ async function buildWeek(
   const targetLevelOrder = state.settings.targetLevelOrder;
   const progression = computeProgression({ sessions, baseline, now, targetLevelOrder });
   const previousStartIso = toIsoDate(addDays(parseIsoDate(weekStart), -7));
-  const previousWeek = restart ? [] : await listWeek(db, previousStartIso);
+  const previousWeek = await listWeek(db, previousStartIso);
   // The next landmarks as they stood when last week was planned (its Monday):
   // a level reached since then reopens that movement with the first-week rule.
   const previousStart = parseIsoDate(previousStartIso);
@@ -126,6 +130,7 @@ async function buildWeek(
     landmarks: nextLandmarks(progression),
     previousLandmarks,
     best: progression.best,
+    restart: restart || state.settings.restartWeek === previousStartIso,
   });
 }
 
@@ -267,9 +272,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!Number.isInteger(order) || order < 0 || order > GRADUATION_ORDER) {
       throw new Error(`Invalid target level: ${order}`);
     }
-    await get().updateSettings({ targetLevelOrder: order });
-    // An explicit choice restarts this week's open targets with the first-week rule.
+    // An explicit choice restarts this week's open targets with the first-week
+    // rule, and next week's too (restartWeek).
     const now = new Date();
+    await get().updateSettings({ targetLevelOrder: order, restartWeek: weekStartIso(now) });
     await replanOpenSlots(db, get(), now, { restart: true });
     await planWeekIfMissing(db, get(), now, { restart: true });
     await get().reload();
@@ -291,6 +297,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const db = requireDb(get());
     await saveBaseline(db, b);
     set({ baseline: b });
+    await get().updateSettings({ restartWeek: weekStartIso(new Date()) });
     await settleDerivedState(db, get, { restart: true });
   },
 
@@ -304,6 +311,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     // The rows are committed: a failure past this point must not report a failed
     // import (a retry would duplicate them). The foreground ensureWeek / next launch heals.
     try {
+      await get().updateSettings({ restartWeek: weekStartIso(new Date()) });
       await settleDerivedState(db, get, { restart: true });
     } catch {
       try { await get().reload(); } catch { /* intentionally ignored */ }

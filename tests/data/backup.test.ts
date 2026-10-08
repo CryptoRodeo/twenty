@@ -34,7 +34,7 @@ describe('backup', () => {
       targetReps: 100, isTestDay: false, sessionId: 'b1',
     }]);
     await saveBaseline(db, makeBaseline({ workouts: 245 }));
-    await saveSettings(db, { ...DEFAULT_SETTINGS, soundOn: false, targetLevelOrder: 4 });
+    await saveSettings(db, { ...DEFAULT_SETTINGS, soundOn: false, targetLevelOrder: 4, restartWeek: '2026-10-05' });
     const json = await exportBackup(db, NOW);
 
     const fresh = createTestDb();
@@ -46,6 +46,7 @@ describe('backup', () => {
     const settings = await getSettings(fresh);
     expect(settings.soundOn).toBe(false);
     expect(settings.targetLevelOrder).toBe(4);
+    expect(settings.restartWeek).toBe('2026-10-05');
     fresh.close();
   });
 
@@ -105,6 +106,7 @@ describe('backup', () => {
       ['effort', (b) => { b.sessions[0]!.effort = 11; }],
       ['weeklyGoalMin', (b) => { (b.settings as never as Record<string, unknown>).weeklyGoalMin = '80'; }],
       ['soundOn', (b) => { (b.settings as never as Record<string, unknown>).soundOn = 'yes'; }],
+      ['restartWeek', (b) => { (b.settings as never as Record<string, unknown>).restartWeek = 'last week'; }],
       ['planDays', (b) => { (b.settings as never as Record<string, unknown>).planDays = [{ dayOfWeek: 9, movement: 'SIX_COUNT' }]; }],
       ['baseline not an object', (b) => { (b as Record<string, unknown>).baseline = 'x'; }],
       ['baseline partial', (b) => { (b as Record<string, unknown>).baseline = { workouts: 3 }; }],
@@ -127,6 +129,14 @@ describe('backup', () => {
       const b = { ...base(), baseline: makeBaseline({ startLevelOrder: 9, graduationWeekStart: '2026-09-28' }) };
       await importBackup(db, JSON.stringify(b));
       expect(await getBaseline(db)).toEqual(b.baseline);
+    });
+
+    it('defaults restartWeek to null for a backup made before it existed', async () => {
+      const { restartWeek: _omit, ...older } = DEFAULT_SETTINGS;
+      await importBackup(db, JSON.stringify({ ...base(), settings: { ...older, targetLevelOrder: 2 } }));
+      const settings = await getSettings(db);
+      expect(settings.restartWeek).toBeNull();
+      expect(settings.targetLevelOrder).toBe(2);
     });
 
     it.each(cases)('%s', async (_name, mutate) => {

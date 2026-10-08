@@ -92,8 +92,10 @@ function parseBackup(json: string): BackupFile {
         && (st.targetLevelOrder as number) >= 0 && (st.targetLevelOrder as number) <= GRADUATION_ORDER))
       && (st.planDays === undefined || (Array.isArray(st.planDays) && st.planDays.every((d) =>
         isRecord(d) && Number.isInteger(d.dayOfWeek) && (d.dayOfWeek as number) >= 0
-        && (d.dayOfWeek as number) <= 6 && isMovement(d.movement))));
-    if (!ok) throw unreadable('the settings are malformed (check goal, count-in, sound, haptics, level and plan days)');
+        && (d.dayOfWeek as number) <= 6 && isMovement(d.movement))))
+      && (st.restartWeek === undefined || st.restartWeek === null
+        || (typeof st.restartWeek === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(st.restartWeek)));
+    if (!ok) throw unreadable('the settings are malformed (check goal, count-in, sound, haptics, level, plan days and restart week)');
   }
   if (raw.baseline !== undefined && raw.baseline !== null) {
     const b = raw.baseline;

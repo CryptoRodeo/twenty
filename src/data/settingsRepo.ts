@@ -12,6 +12,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hapticsOn: true,
   countInSec: 10,
   targetLevelOrder: 0,
+  restartWeek: null,
 };
 
 async function readJson<T>(db: Db, key: string): Promise<T | null> {

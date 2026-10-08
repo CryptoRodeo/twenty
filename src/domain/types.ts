@@ -52,6 +52,12 @@ export interface Settings {
   countInSec: number;     // default 10
   /** Level the user is working toward (0..GRADUATION_ORDER); default 0 = 1A. Marks nothing completed. */
   targetLevelOrder: number;
+  /**
+   * Monday (ISO date) of the week of the last explicit seeding action (level
+   * choice, baseline or CSV import); the week after it opens with the
+   * first-week rule. `null` = none.
+   */
+  restartWeek: string | null;
 }
 
 /**

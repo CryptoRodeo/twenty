@@ -11,7 +11,7 @@ import {
   useAppStore,
 } from '@/store/useAppStore';
 import { GRADUATION_ORDER, LEVELS } from '@/domain/levels';
-import { FIRST_WEEK_FRACTION } from '@/domain/planner';
+import { FIRST_WEEK_FRACTION, adjustTarget } from '@/domain/planner';
 import { weekStartIso } from '@/domain/time';
 import { makeBaseline } from '../helpers/factories';
 import { createTestDb, type TestDb } from '../helpers/testDb';
@@ -649,6 +649,86 @@ describe('explicit seeding restarts this week (C1)', () => {
     for (const p of await listWeek(db, '2026-10-05')) {
       expect(p.targetReps).toBe(Math.max(Math.ceil(twoA[p.movement] * FIRST_WEEK_FRACTION), oneD[p.movement]));
     }
+  });
+});
+
+describe('a mid-week level change carries into next week', () => {
+  afterEach(() => jest.useRealTimers());
+
+  const at = (day: number): Date => new Date(2026, 9, 5 + day, 7, 0); // day 0 = Mon 2026-10-05
+  const nextMonday = new Date(2026, 9, 12, 7, 0);
+
+  /** Complete this week's open slot on `day` at its planned target. */
+  async function complete(day: number): Promise<void> {
+    jest.setSystemTime(at(day));
+    const slot = (await listWeek(db, '2026-10-05')).find((p) => p.dayOfWeek === day)!;
+    await useAppStore.getState().addSession({
+      movement: slot.movement, startedAt: at(day).toISOString(), durationSec: 1200,
+      targetReps: slot.targetReps, completedReps: slot.targetReps, effort: 7, kind: 'GUIDED',
+    }, slot.id);
+  }
+
+  async function expectNextWeekAtFirstWeekTargets(order: number): Promise<void> {
+    jest.setSystemTime(nextMonday);
+    await useAppStore.getState().ensureWeek(nextMonday);
+    const best = selectProgression(useAppStore.getState(), nextMonday).best;
+    const week = await listWeek(db, '2026-10-12');
+    expect(week.length).toBeGreaterThan(0);
+    for (const p of week) {
+      expect(p.targetReps).toBe(Math.max(
+        Math.ceil(LEVELS[order]!.targets[p.movement] * FIRST_WEEK_FRACTION), best[p.movement],
+      ));
+    }
+  }
+
+  it('the probe: Mon/Tue done at 1A, 1C chosen Wed, Wed/Sun done -> next week opens at 1C', async () => {
+    jest.useFakeTimers({ now: at(0), doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval'] });
+    await useAppStore.getState().importBaseline(makeBaseline({
+      startLevelOrder: null, bestLandmark: { SIX_COUNT: 0, NAVY_SEAL: 0 },
+    }));
+    await complete(0);
+    await complete(1);
+    jest.setSystemTime(at(2));
+    await useAppStore.getState().setTargetLevel(2);
+    expect(useAppStore.getState().settings.restartWeek).toBe('2026-10-05');
+    await complete(2);
+    await complete(6);
+    await expectNextWeekAtFirstWeekTargets(2);
+  });
+
+  it('opens next week at the new level even when every slot was linked at change time', async () => {
+    jest.useFakeTimers({ now: at(0), doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval'] });
+    await useAppStore.getState().ensureWeek(at(0));
+    for (const day of [0, 1, 2, 6]) await complete(day);
+    await useAppStore.getState().setTargetLevel(2);
+    expect((await listWeek(db, '2026-10-05')).every((p) => p.targetReps === 1)).toBe(true); // nothing re-planned
+    await expectNextWeekAtFirstWeekTargets(2);
+  });
+
+  it('an ordinary week (no seeding action last week) keeps the weekly adjustment', async () => {
+    jest.useFakeTimers({ now: at(0), doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval'] });
+    await useAppStore.getState().updateSettings({ restartWeek: '2026-09-28' }); // two weeks before next week
+    await useAppStore.getState().ensureWeek(at(0));
+    await complete(0); // 6-count hit at effort 7; Navy Seal missed all week
+    jest.setSystemTime(nextMonday);
+    await useAppStore.getState().ensureWeek(nextMonday);
+    const week = await listWeek(db, '2026-10-12');
+    expect(week.find((p) => p.movement === 'SIX_COUNT')!.targetReps)
+      .toBe(adjustTarget({ previousTarget: 1, achievedReps: 1, effort: 7 }));
+    expect(week.find((p) => p.movement === 'NAVY_SEAL')!.targetReps).toBe(1); // carried over
+  });
+
+  it('importBaseline and importSessions record the week as a restart week', async () => {
+    jest.useFakeTimers({ now: NOW, doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval'] });
+    await useAppStore.getState().updateSettings({ restartWeek: null });
+    await useAppStore.getState().importBaseline(makeBaseline());
+    expect(useAppStore.getState().settings.restartWeek).toBe('2026-10-05');
+    await useAppStore.getState().updateSettings({ restartWeek: null });
+    await useAppStore.getState().importSessions([{
+      movement: 'SIX_COUNT', startedAt: new Date(2026, 8, 20, 12).toISOString(), durationSec: 1200,
+      targetReps: 10, completedReps: 10, effort: 8, kind: 'CUSTOM',
+    }]);
+    expect(useAppStore.getState().settings.restartWeek).toBe('2026-10-05');
   });
 });
 

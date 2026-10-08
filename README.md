@@ -70,6 +70,8 @@ below it count as completed.
   becomes a **Landmark attempt**. A week opens with the first-week rule (`FIRST_WEEK_FRACTION`
   of the next landmark, or your best if higher) when you choose a level,
   import progress, or after a level-up; adjustment continues from there.
+  Changing your level (or importing progress) mid-week resets the rest of the
+  current week, and the next week also starts from the new level.
 - **Edit Week** changes the layout from the **following** week; an existing
   planned week is never overwritten.
 - **Backup**: Settings can export everything as JSON and restore it later.
@@ -136,13 +138,16 @@ current data. This trimmed example is valid as written.
     "soundOn": true,
     "hapticsOn": true,
     "countInSec": 10,
-    "targetLevelOrder": 0
+    "targetLevelOrder": 0,
+    "restartWeek": null
   },
   "baseline": null
 }
 ```
 
 `kind` is `GUIDED`, `CUSTOM` or `LANDMARK`; `effort` is `null` or 1-10.
+`restartWeek` (optional) is `null` or the Monday (`YYYY-MM-DD`) of the week you
+last chose a level or imported progress.
 
 ## Known limitation
 
