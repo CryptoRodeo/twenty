@@ -109,6 +109,12 @@ describe('home screen', () => {
     expect(mockPush).toHaveBeenCalledWith('/week/edit');
   });
 
+  it('opens Settings', () => {
+    render(<HomeScreen />);
+    fireEvent.press(screen.getByLabelText('Settings'));
+    expect(mockPush).toHaveBeenCalledWith('/settings');
+  });
+
   describe('starting level card', () => {
     it('is shown on a fresh store with 1A selected', () => {
       mockState = freshState();

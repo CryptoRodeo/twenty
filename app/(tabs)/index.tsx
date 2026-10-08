@@ -88,9 +88,14 @@ export default function HomeScreen() {
       <Card
         title="This week's plan"
         right={
-          <Pressable accessibilityRole="link" accessibilityLabel="Edit week" onPress={() => router.push('/week/edit')}>
-            <Text style={{ ...theme.font.body, color: theme.colors.accent }}>Edit Week</Text>
-          </Pressable>
+          <View style={{ flexDirection: 'row', gap: theme.spacing(4) }}>
+            <Pressable accessibilityRole="link" accessibilityLabel="Edit week" onPress={() => router.push('/week/edit')}>
+              <Text style={{ ...theme.font.body, color: theme.colors.accent }}>Edit Week</Text>
+            </Pressable>
+            <Pressable accessibilityRole="link" accessibilityLabel="Settings" onPress={() => router.push('/settings')}>
+              <Text style={{ ...theme.font.body, color: theme.colors.accent }}>Settings</Text>
+            </Pressable>
+          </View>
         }
       >
         <Text style={{ ...theme.font.body, color: theme.colors.textDim, marginBottom: theme.spacing(1) }}>
