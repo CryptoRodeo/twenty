@@ -1,4 +1,5 @@
 import {
+  DAY_NAMES,
   addDays,
   dayIndex,
   diffDays,
@@ -45,5 +46,12 @@ describe('time helpers', () => {
 
   it('buckets by month', () => {
     expect(monthKey(wed)).toBe('2026-10');
+  });
+});
+
+describe('DAY_NAMES', () => {
+  it('names days Monday-first', () => {
+    expect(DAY_NAMES[0]).toBe('Monday');
+    expect(DAY_NAMES[6]).toBe('Sunday');
   });
 });

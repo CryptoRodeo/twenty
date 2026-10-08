@@ -46,3 +46,7 @@ export function diffDays(from: Date, to: Date): number {
 export function monthKey(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
 }
+
+export const DAY_NAMES: readonly string[] = [
+  'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
+];
