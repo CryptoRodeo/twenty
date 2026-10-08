@@ -60,7 +60,7 @@ export default function ImportScreen() {
     setSaveError(null);
     try {
       await work();
-      router.replace('/(tabs)');
+      router.back();
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : String(e));
     } finally {

@@ -330,6 +330,22 @@ describe('importSessions', () => {
     expect(await listSessions(db)).toHaveLength(3);
   });
 
+  it('resolves and stores the rows once when settling fails after the commit', async () => {
+    jest.useFakeTimers({ now: NOW, doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval'] });
+    await useAppStore.getState().ensureWeek(NOW);
+    const real = db.runAsync.bind(db);
+    const spy = jest.spyOn(db, 'runAsync').mockImplementation(((sql: string, ...a: unknown[]) =>
+      /INSERT INTO planned_sessions|INSERT INTO level_events/.test(sql)
+        ? Promise.reject(new Error('disk full'))
+        : (real as (...x: unknown[]) => unknown)(sql, ...a)) as never);
+    await expect(useAppStore.getState().importSessions([
+      row('SIX_COUNT', '2026-09-01T12:00:00.000Z', 160),
+    ])).resolves.toBeUndefined();
+    spy.mockRestore();
+    expect(await listSessions(db)).toHaveLength(1);
+    expect(useAppStore.getState().sessions).toHaveLength(1);
+  });
+
   it('re-plans the current week\'s open slots from the imported history', async () => {
     jest.useFakeTimers({ now: NOW, doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval'] });
     await useAppStore.getState().ensureWeek(NOW);

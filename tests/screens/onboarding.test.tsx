@@ -1,11 +1,11 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import ImportScreen from '../../app/onboarding/import';
 
-const mockReplace = jest.fn();
+const mockBack = jest.fn();
 const mockImportBaseline = jest.fn();
 const mockImportSessions = jest.fn();
 
-jest.mock('expo-router', () => ({ useRouter: () => ({ replace: mockReplace }) }));
+jest.mock('expo-router', () => ({ useRouter: () => ({ back: mockBack }) }));
 jest.mock('@/store/useAppStore', () => ({
   useAppStore: (selector: (s: unknown) => unknown) =>
     selector({ importBaseline: mockImportBaseline, importSessions: mockImportSessions }),
@@ -49,7 +49,7 @@ describe('import existing progress', () => {
       streakWeeks: 16,
       graduationWeekStart: null,
     }));
-    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/(tabs)'));
+    await waitFor(() => expect(mockBack).toHaveBeenCalled());
   });
 
   it('shows the derived lifetime total as it is typed', () => {
@@ -82,7 +82,7 @@ describe('import existing progress', () => {
     await waitFor(() => expect(mockImportBaseline).toHaveBeenCalledWith(
       expect.objectContaining({ startLevelOrder: null, workouts: 0 }),
     ));
-    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/(tabs)'));
+    await waitFor(() => expect(mockBack).toHaveBeenCalled());
   });
 
   it('shows an inline error, keeps the entered values and stays put when a save rejects', async () => {
@@ -92,7 +92,7 @@ describe('import existing progress', () => {
     fireEvent.press(screen.getByLabelText('Save imported progress'));
     expect(await screen.findByText('Could not save: disk full')).toBeTruthy();
     expect(screen.getByLabelText('Workouts').props.value).toBe('12');
-    expect(mockReplace).not.toHaveBeenCalled();
+    expect(mockBack).not.toHaveBeenCalled();
   });
 
   it('shows an inline error when importing sessions rejects', async () => {
@@ -101,6 +101,6 @@ describe('import existing progress', () => {
     fireEvent.changeText(screen.getByLabelText('Past sessions CSV'), '2026-09-28,SIX_COUNT,20,288,8');
     fireEvent.press(screen.getByLabelText('Save imported progress'));
     expect(await screen.findByText('Could not save: bad write')).toBeTruthy();
-    expect(mockReplace).not.toHaveBeenCalled();
+    expect(mockBack).not.toHaveBeenCalled();
   });
 });

@@ -205,7 +205,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   importSessions: async (rows) => {
     const db = requireDb(get());
     await insertSessions(db, rows.map((row) => ({ ...row, id: newId() })));
-    await settleDerivedState(db, get);
+    // The rows are committed: a failure past this point must not report a failed
+    // import (a retry would duplicate them). The foreground ensureWeek / next launch heals.
+    try {
+      await settleDerivedState(db, get);
+    } catch {
+      try { await get().reload(); } catch { /* intentionally ignored */ }
+    }
   },
 
   ensureWeek: async (now) => {

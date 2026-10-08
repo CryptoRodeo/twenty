@@ -82,4 +82,9 @@ describe('parseSessionCsv', () => {
     expect(rows).toEqual([]);
     expect(errors[0]).toMatch(/line 1.*date/i);
   });
+
+  it('never marks a near-20-minute row as a landmark', () => {
+    const { rows } = parseSessionCsv('2026-09-28,SIX_COUNT,19.995,288,8\n2026-09-28,SIX_COUNT,20.004,288,8');
+    expect(rows.map((r) => r.kind)).toEqual(['CUSTOM', 'CUSTOM']);
+  });
 });

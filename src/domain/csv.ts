@@ -80,7 +80,9 @@ export function parseSessionCsv(text: string): ParsedCsv {
       effort = parsed;
     }
 
-    const durationSec = Math.round(durationMin * 60);
+    // Landmark only when the exact (unrounded) duration is 20:00; 19.995 min is CUSTOM.
+    const exactSec = durationMin * 60;
+    const durationSec = Math.round(exactSec);
     rows.push({
       movement,
       startedAt,
@@ -88,7 +90,7 @@ export function parseSessionCsv(text: string): ParsedCsv {
       targetReps: reps,
       completedReps: reps,
       effort,
-      kind: durationSec === LANDMARK_DURATION_SEC ? 'LANDMARK' : 'CUSTOM',
+      kind: exactSec === LANDMARK_DURATION_SEC ? 'LANDMARK' : 'CUSTOM',
     });
   });
 
