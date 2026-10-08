@@ -21,10 +21,16 @@ export default function RootLayout() {
         if (cancelled) return;
         const store = useAppStore.getState();
         await store.init(db);
-        // Plan the week even on a fresh install; importing a baseline re-plans open slots.
-        await store.ensureWeek(new Date());
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
+        return;
+      }
+      // Plan the week even on a fresh install; importing a baseline re-plans open slots.
+      // Not fatal: the database is open, and planning is retried on the next foreground.
+      try {
+        await useAppStore.getState().ensureWeek(new Date());
+      } catch (e) {
+        console.warn('Could not plan the week', e);
       }
     })();
     return () => { cancelled = true; };

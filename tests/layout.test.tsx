@@ -28,11 +28,22 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 
 it('shows the bootstrap error even after init has marked the store ready', async () => {
-  mockState.init.mockImplementation(async () => { mockState.ready = true; });
-  mockState.ensureWeek.mockRejectedValue(new Error('disk full'));
+  mockState.init.mockImplementation(async () => { mockState.ready = true; throw new Error('disk full'); });
   render(<RootLayout />);
   await waitFor(() =>
     expect(screen.getByText('Could not open the database: disk full')).toBeTruthy());
+  mockState.init.mockReset();
+});
+
+it('does not show the database error when the boot re-plan fails', async () => {
+  mockState.ready = true;
+  mockState.ensureWeek.mockReset();
+  mockState.ensureWeek.mockRejectedValue(new Error('bad plan'));
+  const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+  render(<RootLayout />);
+  await waitFor(() => expect(warn).toHaveBeenCalledWith('Could not plan the week', expect.any(Error)));
+  expect(screen.queryByText(/Could not open the database/)).toBeNull();
+  warn.mockRestore();
 });
 
 it('plans the week at boot even on a fresh install with no baseline or history', async () => {
