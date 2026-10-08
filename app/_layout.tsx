@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, StyleSheet, Text, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -30,6 +30,20 @@ export default function RootLayout() {
     })();
     return () => { cancelled = true; };
   }, []);
+
+  // A week can roll over while the app stays open; plan it when we come back.
+  useEffect(() => {
+    if (!ready) return undefined;
+    const sub = AppState.addEventListener('change', (status) => {
+      if (status !== 'active') return;
+      const state = useAppStore.getState();
+      if (state.baseline !== null || state.sessions.length > 0) {
+        state.ensureWeek(new Date()).catch((e: unknown) =>
+          setError(e instanceof Error ? e.message : String(e)));
+      }
+    });
+    return () => sub.remove();
+  }, [ready]);
 
   return (
     <SafeAreaProvider>

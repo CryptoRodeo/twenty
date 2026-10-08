@@ -70,6 +70,22 @@ describe('ensureWeek', () => {
 });
 
 describe('addSession', () => {
+  it('plans the current week after the first session on a fresh database', async () => {
+    const now = new Date();
+    expect(await listWeek(db, weekStartIso(now))).toHaveLength(0);
+    await useAppStore.getState().addSession({
+      movement: 'SIX_COUNT',
+      startedAt: now.toISOString(),
+      durationSec: 1200,
+      targetReps: 100,
+      completedReps: 100,
+      effort: null,
+      kind: 'CUSTOM',
+    });
+    expect((await listWeek(db, weekStartIso(now))).length).toBeGreaterThan(0);
+    expect(useAppStore.getState().planned.length).toBeGreaterThan(0);
+  });
+
   it('links a same-day workout to that day’s slot, not an earlier missed one', async () => {
     await useAppStore.getState().ensureWeek(NOW);
     const saved = await useAppStore.getState().addSession({

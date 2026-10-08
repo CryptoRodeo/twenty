@@ -108,6 +108,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     await reconcileLevelEvents(db, get().baseline);
     await get().reload();
+    // A fresh install has no baseline, so its week could not be planned at launch;
+    // the first session gives it history. ensureWeek never overwrites an existing week.
+    await get().ensureWeek(new Date());
     return session;
   },
 

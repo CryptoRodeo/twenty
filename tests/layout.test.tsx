@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react-native';
+import { AppState } from 'react-native';
 import RootLayout from '../app/_layout';
 
 const mockState = {
@@ -32,4 +33,26 @@ it('shows the bootstrap error even after init has marked the store ready', async
   render(<RootLayout />);
   await waitFor(() =>
     expect(screen.getByText('Could not open the database: disk full')).toBeTruthy());
+});
+
+it('re-plans the week when the app returns to the foreground', async () => {
+  mockState.ready = true;
+  mockState.ensureWeek.mockReset();
+  mockState.ensureWeek.mockResolvedValue(undefined);
+  let listener: ((status: string) => void) | undefined;
+  const remove = jest.fn();
+  const spy = jest.spyOn(AppState, 'addEventListener').mockImplementation(((_: string, cb: (status: string) => void) => {
+    listener = cb;
+    return { remove };
+  }) as never);
+  const view = render(<RootLayout />);
+  await waitFor(() => expect(listener).toBeDefined());
+  await waitFor(() => expect(mockState.ensureWeek).toHaveBeenCalledTimes(1)); // bootstrap
+  listener!('background');
+  expect(mockState.ensureWeek).toHaveBeenCalledTimes(1);
+  listener!('active');
+  expect(mockState.ensureWeek).toHaveBeenCalledTimes(2);
+  view.unmount();
+  expect(remove).toHaveBeenCalled();
+  spy.mockRestore();
 });
