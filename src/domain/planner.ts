@@ -130,13 +130,21 @@ export interface PlanWeekInput {
   sessions: Session[];
   /** The next landmark per movement, from progression state. */
   landmarks: MovementMap<number>;
+  /**
+   * The next landmark per movement as it stood when last week was planned.
+   * A movement whose landmark has risen since (a level-up) opens again with
+   * the first-week rule instead of adjusting last week's target.
+   */
+  previousLandmarks: MovementMap<number>;
   /** Current best landmark reps per movement — the first-week floor. */
   best: MovementMap<number>;
 }
 
 /**
  * Decides a whole week: adjust last week's targets when it was planned,
- * otherwise open with the first-week fraction of the next landmark.
+ * otherwise open with the first-week fraction of the next landmark. After a
+ * level-up (the next landmark rose) that movement opens with the first-week
+ * rule for the new level; weekly adjustment continues from there.
  */
 export function planWeek(input: PlanWeekInput): PlannedSession[] {
   const { previousWeek, landmarks, best } = input;
@@ -151,11 +159,15 @@ export function planWeek(input: PlanWeekInput): PlannedSession[] {
     for (const m of MOVEMENTS) {
       previousTargets[m] = previousWeek.find((p) => p.movement === m)?.targetReps ?? opening[m];
     }
-    targets = nextWeekTargets({
+    const adjusted = nextWeekTargets({
       planned: previousWeek,
       sessions: input.sessions,
       targets: previousTargets,
     });
+    targets = {} as MovementMap<number>;
+    for (const m of MOVEMENTS) {
+      targets[m] = landmarks[m] > input.previousLandmarks[m] ? opening[m] : adjusted[m];
+    }
   }
 
   return buildWeek({ weekStart: input.weekStart, planDays: input.planDays, targets, landmarks });

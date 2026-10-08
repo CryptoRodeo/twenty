@@ -77,25 +77,37 @@ async function reconcileLevelEvents(
   await deleteLevelEventsExcept(db, events.map((e) => e.id));
 }
 
+function nextLandmarks(progression: ProgressionState): MovementMap<number> {
+  const landmarks = {} as MovementMap<number>;
+  for (const m of MOVEMENTS) landmarks[m] = progression.nextTargets[m].target;
+  return landmarks;
+}
+
 /** Plan one week from the current progression (pure read of db + state). `restart` ignores last week. */
 async function buildWeek(
   db: Db, state: AppState, now: Date, planDays: PlanDay[] = state.settings.planDays,
   restart = false,
 ): Promise<PlannedSession[]> {
   const weekStart = weekStartIso(now);
-  const progression = computeProgression({
-    sessions: state.sessions, baseline: state.baseline, now,
-    targetLevelOrder: state.settings.targetLevelOrder,
-  });
-  const landmarks = {} as MovementMap<number>;
-  for (const m of MOVEMENTS) landmarks[m] = progression.nextTargets[m].target;
-  const previousWeek = restart ? [] : await listWeek(db, toIsoDate(addDays(parseIsoDate(weekStart), -7)));
+  const { sessions, baseline } = state;
+  const targetLevelOrder = state.settings.targetLevelOrder;
+  const progression = computeProgression({ sessions, baseline, now, targetLevelOrder });
+  const previousStartIso = toIsoDate(addDays(parseIsoDate(weekStart), -7));
+  const previousWeek = restart ? [] : await listWeek(db, previousStartIso);
+  // The next landmarks as they stood when last week was planned (its Monday):
+  // a level reached since then reopens that movement with the first-week rule.
+  const previousStart = parseIsoDate(previousStartIso);
+  const previousLandmarks = nextLandmarks(computeProgression({
+    sessions: sessions.filter((s) => new Date(s.startedAt) < previousStart),
+    baseline, now: previousStart, targetLevelOrder,
+  }));
   return planWeek({
     weekStart,
     planDays,
     previousWeek,
-    sessions: state.sessions,
-    landmarks,
+    sessions,
+    landmarks: nextLandmarks(progression),
+    previousLandmarks,
     best: progression.best,
   });
 }

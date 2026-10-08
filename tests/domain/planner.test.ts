@@ -1,6 +1,7 @@
 import {
   DEFAULT_PLAN_DAYS,
   DEFAULT_WEEKLY_GOAL_MIN,
+  FIRST_WEEK_FRACTION,
   adjustTarget,
   buildWeek,
   firstWeekTarget,
@@ -8,6 +9,7 @@ import {
   planWeek,
   plannedSessionId,
 } from '@/domain/planner';
+import { LEVELS } from '@/domain/levels';
 import { makeSession } from '../helpers/factories';
 
 describe('defaults', () => {
@@ -160,6 +162,7 @@ describe('planWeek', () => {
     weekStart: '2026-10-05',
     planDays: DEFAULT_PLAN_DAYS,
     landmarks: { SIX_COUNT: 160, NAVY_SEAL: 60 },
+    previousLandmarks: { SIX_COUNT: 160, NAVY_SEAL: 60 },
     best: { SIX_COUNT: 0, NAVY_SEAL: 0 },
     sessions: [],
   };
@@ -184,5 +187,58 @@ describe('planWeek', () => {
     const week = planWeek({ ...base, sessions: [done], previousWeek });
     expect(week.find((p) => p.movement === 'SIX_COUNT')!.targetReps).toBe(103);
     expect(week.find((p) => p.movement === 'NAVY_SEAL')!.targetReps).toBe(40); // missed: carries over
+  });
+
+  describe('after a level-up', () => {
+    const lastWeek = (targets: { SIX_COUNT: number; NAVY_SEAL: number }, landmarks = base.landmarks) =>
+      buildWeek({ weekStart: '2026-09-28', planDays: DEFAULT_PLAN_DAYS, targets, landmarks })
+        .map((p) => (p.id === '2026-09-28-0' ? { ...p, sessionId: 'done' } : p));
+    const done = makeSession({ id: 'done', movement: 'SIX_COUNT', completedReps: 40, effort: 7 });
+    const oneA = LEVELS[0]!.targets;
+    const oneB = LEVELS[1]!.targets;
+
+    it('opens a movement whose landmark rose with the first-week rule for the new level', () => {
+      const week = planWeek({
+        ...base,
+        landmarks: oneB,
+        previousLandmarks: oneA,
+        best: { SIX_COUNT: 40, NAVY_SEAL: 15 },
+        sessions: [done],
+        previousWeek: lastWeek(oneA, oneA),
+      });
+      for (const p of week) {
+        expect(p.targetReps).toBe(Math.max(
+          Math.ceil(oneB[p.movement] * FIRST_WEEK_FRACTION),
+          p.movement === 'SIX_COUNT' ? 40 : 15,
+        ));
+      }
+    });
+
+    it('applies only to the movement whose landmark rose', () => {
+      const previousLandmarks = { SIX_COUNT: oneB.SIX_COUNT, NAVY_SEAL: oneA.NAVY_SEAL };
+      const week = planWeek({
+        ...base,
+        landmarks: oneB,
+        previousLandmarks,
+        sessions: [done],
+        previousWeek: lastWeek({ SIX_COUNT: 40, NAVY_SEAL: 1 }, previousLandmarks),
+      });
+      // 6-count did not rise: adjusted from last week's 40 (hit at effort 7).
+      expect(week.find((p) => p.movement === 'SIX_COUNT')!.targetReps)
+        .toBe(adjustTarget({ previousTarget: 40, achievedReps: 40, effort: 7 }));
+      expect(week.find((p) => p.movement === 'NAVY_SEAL')!.targetReps)
+        .toBe(Math.ceil(oneB.NAVY_SEAL * FIRST_WEEK_FRACTION));
+    });
+
+    it('keeps adjusting when the landmark is unchanged', () => {
+      const week = planWeek({
+        ...base,
+        sessions: [done],
+        previousWeek: lastWeek({ SIX_COUNT: 40, NAVY_SEAL: 20 }),
+      });
+      expect(week.find((p) => p.movement === 'SIX_COUNT')!.targetReps)
+        .toBe(adjustTarget({ previousTarget: 40, achievedReps: 40, effort: 7 }));
+      expect(week.find((p) => p.movement === 'NAVY_SEAL')!.targetReps).toBe(20);
+    });
   });
 });

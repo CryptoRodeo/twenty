@@ -542,3 +542,32 @@ describe('restoreBackup', () => {
     }
   });
 });
+
+describe('planning after a natural level-up', () => {
+  afterEach(() => jest.useRealTimers());
+
+  it('opens the next week at first-week targets for the new level', async () => {
+    const week1 = new Date(2026, 8, 28, 7, 0); // Mon 2026-09-28
+    jest.useFakeTimers({ now: week1, doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval'] });
+    await useAppStore.getState().ensureWeek(week1);
+    const oneB = LEVELS[1]!.targets;
+    const reps = { SIX_COUNT: oneB.SIX_COUNT - 10, NAVY_SEAL: oneB.NAVY_SEAL - 5 }; // 1A met, 1B not
+    for (const [i, movement] of (['SIX_COUNT', 'NAVY_SEAL'] as const).entries()) {
+      const at = new Date(2026, 8, 28 + i, 7, 0);
+      jest.setSystemTime(at);
+      await useAppStore.getState().addSession({
+        movement, startedAt: at.toISOString(), durationSec: 1200,
+        targetReps: 1, completedReps: reps[movement], effort: 7, kind: 'GUIDED',
+      });
+    }
+    expect(selectProgression(useAppStore.getState(), NOW).currentLevel!.name).toBe(LEVELS[0]!.name);
+
+    jest.setSystemTime(NOW);
+    await useAppStore.getState().ensureWeek(NOW);
+    const week = await listWeek(db, '2026-10-05');
+    expect(week.length).toBeGreaterThan(0);
+    for (const p of week) {
+      expect(p.targetReps).toBe(Math.max(Math.ceil(oneB[p.movement] * FIRST_WEEK_FRACTION), reps[p.movement]));
+    }
+  });
+});
