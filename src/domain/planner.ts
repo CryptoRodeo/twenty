@@ -133,13 +133,23 @@ export interface PlanWeekInput {
   previousLandmarks: MovementMap<number>;
   /** Current best landmark reps per movement — the first-week floor. */
   best: MovementMap<number>;
+  /**
+   * An explicit seeding action (level choice, baseline or CSV import) happened
+   * last week or this week: every movement opens with the first-week rule.
+   */
+  restart?: boolean;
 }
 
 /**
  * Decides a whole week: adjust last week's targets when it was planned,
  * otherwise open with the first-week fraction of the next landmark. After a
  * level-up (the next landmark rose) that movement opens with the first-week
- * rule for the new level; weekly adjustment continues from there.
+ * rule for the new level; weekly adjustment continues from there. `restart`
+ * opens every movement with the first-week rule.
+ *
+ * Last week's target is the one its LAST slot per movement (by day) ended
+ * on — an earlier slot may still carry a target from before a mid-week level
+ * change — and the result is its last completed session (decision 7).
  */
 export function planWeek(input: PlanWeekInput): PlannedSession[] {
   const { previousWeek, landmarks, best } = input;
@@ -149,10 +159,14 @@ export function planWeek(input: PlanWeekInput): PlannedSession[] {
   }
 
   let targets = opening;
-  if (previousWeek.length > 0) {
+  if (previousWeek.length > 0 && input.restart !== true) {
     const previousTargets = {} as MovementMap<number>;
     for (const m of MOVEMENTS) {
-      previousTargets[m] = previousWeek.find((p) => p.movement === m)?.targetReps ?? opening[m];
+      const last = previousWeek
+        .filter((p) => p.movement === m)
+        .sort((a, b) => a.dayOfWeek - b.dayOfWeek)
+        .at(-1);
+      previousTargets[m] = last?.targetReps ?? opening[m];
     }
     const adjusted = nextWeekTargets({
       planned: previousWeek,

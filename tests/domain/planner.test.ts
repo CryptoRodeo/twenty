@@ -189,6 +189,65 @@ describe('planWeek', () => {
     expect(week.find((p) => p.movement === 'NAVY_SEAL')!.targetReps).toBe(40); // missed: carries over
   });
 
+  describe('mixed targets within last week (mid-week level change)', () => {
+    // Mon 6-count and Tue Navy were planned at 1A (1 rep); a mid-week level
+    // change re-planned Wed Navy and Sun 6-count higher.
+    const mixedWeek = (sessionIds: Partial<Record<number, string>>) => [
+      { dayOfWeek: 0, movement: 'SIX_COUNT' as const, targetReps: 1 },
+      { dayOfWeek: 1, movement: 'NAVY_SEAL' as const, targetReps: 1 },
+      { dayOfWeek: 2, movement: 'NAVY_SEAL' as const, targetReps: 36 },
+      { dayOfWeek: 6, movement: 'SIX_COUNT' as const, targetReps: 90 },
+    ].map((r) => ({
+      ...r, id: `2026-09-28-${r.dayOfWeek}`, weekStart: '2026-09-28', isTestDay: false,
+      ...(sessionIds[r.dayOfWeek] !== undefined ? { sessionId: sessionIds[r.dayOfWeek] } : {}),
+    }));
+    const session = (id: string, movement: 'SIX_COUNT' | 'NAVY_SEAL', reps: number, day: number) =>
+      makeSession({
+        id, movement, completedReps: reps, effort: 7,
+        startedAt: new Date(2026, 8, 28 + day, 7).toISOString(),
+      });
+    const sessions = [
+      session('mon', 'SIX_COUNT', 1, 0), session('tue', 'NAVY_SEAL', 1, 1),
+      session('wed', 'NAVY_SEAL', 36, 2), session('sun', 'SIX_COUNT', 90, 6),
+    ];
+
+    it('adjusts from the target of the last slot per movement, not the first', () => {
+      const week = planWeek({
+        ...base, sessions, previousWeek: mixedWeek({ 0: 'mon', 1: 'tue', 2: 'wed', 6: 'sun' }),
+      });
+      expect(week.find((p) => p.movement === 'SIX_COUNT')!.targetReps)
+        .toBe(adjustTarget({ previousTarget: 90, achievedReps: 90, effort: 7 }));
+      expect(week.find((p) => p.movement === 'NAVY_SEAL')!.targetReps)
+        .toBe(adjustTarget({ previousTarget: 36, achievedReps: 36, effort: 7 }));
+    });
+
+    it('carries the last slot\'s target when that slot was missed', () => {
+      const week = planWeek({ ...base, sessions, previousWeek: mixedWeek({}) });
+      expect(week.find((p) => p.movement === 'SIX_COUNT')!.targetReps).toBe(90);
+      expect(week.find((p) => p.movement === 'NAVY_SEAL')!.targetReps).toBe(36);
+    });
+
+    it('ignores row order: the last slot is chosen by day of week', () => {
+      const previousWeek = mixedWeek({ 0: 'mon', 1: 'tue', 2: 'wed', 6: 'sun' }).reverse();
+      const week = planWeek({ ...base, sessions, previousWeek });
+      expect(week.find((p) => p.movement === 'SIX_COUNT')!.targetReps)
+        .toBe(adjustTarget({ previousTarget: 90, achievedReps: 90, effort: 7 }));
+    });
+  });
+
+  it('restart opens every movement with the first-week rule even when last week was planned', () => {
+    const done = makeSession({ id: 'done', movement: 'SIX_COUNT', completedReps: 100, effort: 7 });
+    const previousWeek = buildWeek({
+      weekStart: '2026-09-28',
+      planDays: DEFAULT_PLAN_DAYS,
+      targets: { SIX_COUNT: 100, NAVY_SEAL: 40 },
+      landmarks: base.landmarks,
+    }).map((p) => (p.id === '2026-09-28-0' ? { ...p, sessionId: 'done' } : p));
+    const week = planWeek({ ...base, sessions: [done], previousWeek, restart: true });
+    expect(week.find((p) => p.movement === 'SIX_COUNT')!.targetReps).toBe(144); // ceil(160*0.9)
+    expect(week.find((p) => p.movement === 'NAVY_SEAL')!.targetReps).toBe(54); // ceil(60*0.9)
+  });
+
   describe('after a level-up', () => {
     const lastWeek = (targets: { SIX_COUNT: number; NAVY_SEAL: number }, landmarks = base.landmarks) =>
       buildWeek({ weekStart: '2026-09-28', planDays: DEFAULT_PLAN_DAYS, targets, landmarks })
