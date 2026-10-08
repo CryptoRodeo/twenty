@@ -110,7 +110,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     await get().reload();
     // A fresh install has no baseline, so its week could not be planned at launch;
     // the first session gives it history. ensureWeek never overwrites an existing week.
-    await get().ensureWeek(new Date());
+    // Best-effort: the session is already persisted, so a planning failure must not
+    // report a failed save (a retry would duplicate it); the foreground re-plan retries.
+    try {
+      await get().ensureWeek(new Date());
+    } catch {
+      // intentionally ignored
+    }
     return session;
   },
 

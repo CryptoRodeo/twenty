@@ -70,6 +70,26 @@ describe('ensureWeek', () => {
 });
 
 describe('addSession', () => {
+  it('still resolves with the session stored once when week planning fails', async () => {
+    const original = useAppStore.getState().ensureWeek;
+    useAppStore.setState({ ensureWeek: jest.fn().mockRejectedValue(new Error('disk full')) });
+    try {
+      const saved = await useAppStore.getState().addSession({
+        movement: 'SIX_COUNT',
+        startedAt: new Date().toISOString(),
+        durationSec: 1200,
+        targetReps: 100,
+        completedReps: 100,
+        effort: null,
+        kind: 'CUSTOM',
+      });
+      expect(saved.id).toMatch(/\S/);
+      expect(useAppStore.getState().sessions).toHaveLength(1);
+    } finally {
+      useAppStore.setState({ ensureWeek: original });
+    }
+  });
+
   it('plans the current week after the first session on a fresh database', async () => {
     const now = new Date();
     expect(await listWeek(db, weekStartIso(now))).toHaveLength(0);
