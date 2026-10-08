@@ -162,6 +162,16 @@ describe('home screen', () => {
       expect(screen.queryByText('Choose your starting level')).toBeNull();
     });
 
+    it('keeps the card and shows the error when choosing the level fails after the baseline saved', async () => {
+      mockState = freshState();
+      mockImportBaseline.mockImplementation(async () => { mockState = { ...mockState, baseline: ZERO_BASELINE }; });
+      mockSetTargetLevel.mockRejectedValue(new Error('locked'));
+      render(<HomeScreen />);
+      fireEvent.press(screen.getByLabelText('Start at selected level'));
+      expect(await screen.findByText('Could not save: locked')).toBeTruthy();
+      expect(screen.getByText('Choose your starting level')).toBeTruthy();
+    });
+
     it('shows an inline error when saving fails', async () => {
       mockState = freshState();
       mockImportBaseline.mockRejectedValue(new Error('disk full'));

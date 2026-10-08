@@ -28,6 +28,8 @@ export default function HomeScreen() {
   const [busy, setBusy] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const chosen = selected ?? savedTarget;
+  // The baseline is saved before the level, so keep the card (and any error) up until both are done.
+  const showStartCard = showImport || busy || startError !== null;
 
   async function startAtLevel(): Promise<void> {
     if (busy) return;
@@ -49,7 +51,7 @@ export default function HomeScreen() {
       contentContainerStyle={{ padding: theme.spacing(4) }}
       style={{ backgroundColor: theme.colors.bg }}
     >
-      {showImport && (
+      {showStartCard && (
         <Card title="Choose your starting level">
           <Text style={{ ...theme.font.body, color: theme.colors.textDim, marginBottom: theme.spacing(3) }}>
             Pick the level you are working on. Choosing a level completes nothing. You can change this later in Settings.
