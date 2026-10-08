@@ -121,3 +121,42 @@ export function nextWeekTargets(input: NextWeekInput): MovementMap<number> {
 export function movementForDay(planDays: PlanDay[], dayOfWeek: number): Movement | null {
   return planDays.find((d) => d.dayOfWeek === dayOfWeek)?.movement ?? null;
 }
+
+export interface PlanWeekInput {
+  weekStart: string;
+  planDays: PlanDay[];
+  /** Last week's planned rows; empty when last week was never planned. */
+  previousWeek: PlannedSession[];
+  sessions: Session[];
+  /** The next landmark per movement, from progression state. */
+  landmarks: MovementMap<number>;
+  /** Current best landmark reps per movement — the first-week floor. */
+  best: MovementMap<number>;
+}
+
+/**
+ * Decides a whole week: adjust last week's targets when it was planned,
+ * otherwise open with the first-week fraction of the next landmark.
+ */
+export function planWeek(input: PlanWeekInput): PlannedSession[] {
+  const { previousWeek, landmarks, best } = input;
+  const opening = {} as MovementMap<number>;
+  for (const m of MOVEMENTS) {
+    opening[m] = firstWeekTarget({ nextLandmark: landmarks[m], lastBest: best[m] });
+  }
+
+  let targets = opening;
+  if (previousWeek.length > 0) {
+    const previousTargets = {} as MovementMap<number>;
+    for (const m of MOVEMENTS) {
+      previousTargets[m] = previousWeek.find((p) => p.movement === m)?.targetReps ?? opening[m];
+    }
+    targets = nextWeekTargets({
+      planned: previousWeek,
+      sessions: input.sessions,
+      targets: previousTargets,
+    });
+  }
+
+  return buildWeek({ weekStart: input.weekStart, planDays: input.planDays, targets, landmarks });
+}

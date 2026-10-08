@@ -5,6 +5,7 @@ import {
   buildWeek,
   firstWeekTarget,
   nextWeekTargets,
+  planWeek,
   plannedSessionId,
 } from '@/domain/planner';
 import { makeSession } from '../helpers/factories';
@@ -151,5 +152,37 @@ describe('nextWeekTargets', () => {
       targets: { SIX_COUNT: 100, NAVY_SEAL: 40 },
     });
     expect(next).toEqual({ SIX_COUNT: 100, NAVY_SEAL: 40 });
+  });
+});
+
+describe('planWeek', () => {
+  const base = {
+    weekStart: '2026-10-05',
+    planDays: DEFAULT_PLAN_DAYS,
+    landmarks: { SIX_COUNT: 160, NAVY_SEAL: 60 },
+    best: { SIX_COUNT: 0, NAVY_SEAL: 0 },
+    sessions: [],
+  };
+
+  it('uses the first-week fraction (floored by best) when last week had no plan', () => {
+    const week = planWeek({ ...base, best: { SIX_COUNT: 150, NAVY_SEAL: 0 }, previousWeek: [] });
+    expect(week.find((p) => p.movement === 'SIX_COUNT')!.targetReps).toBe(150); // max(144, 150)
+    expect(week.find((p) => p.movement === 'NAVY_SEAL')!.targetReps).toBe(54); // ceil(60*0.9)
+    expect(week.map((p) => p.id)).toEqual(
+      ['2026-10-05-0', '2026-10-05-1', '2026-10-05-2', '2026-10-05-6'],
+    );
+  });
+
+  it('adjusts last week\'s targets from its results when it was planned', () => {
+    const done = makeSession({ id: 'done', movement: 'SIX_COUNT', completedReps: 100, effort: 7 });
+    const previousWeek = buildWeek({
+      weekStart: '2026-09-28',
+      planDays: DEFAULT_PLAN_DAYS,
+      targets: { SIX_COUNT: 100, NAVY_SEAL: 40 },
+      landmarks: base.landmarks,
+    }).map((p) => (p.id === '2026-09-28-0' ? { ...p, sessionId: 'done' } : p));
+    const week = planWeek({ ...base, sessions: [done], previousWeek });
+    expect(week.find((p) => p.movement === 'SIX_COUNT')!.targetReps).toBe(103);
+    expect(week.find((p) => p.movement === 'NAVY_SEAL')!.targetReps).toBe(40); // missed: carries over
   });
 });
