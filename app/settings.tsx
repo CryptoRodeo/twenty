@@ -5,7 +5,7 @@ import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Stepper } from '@/components/Stepper';
-import { exportBackup, importBackup } from '@/data/backup';
+import { exportBackup } from '@/data/backup';
 import { LANDMARK_DURATION_SEC, LEVELS } from '@/domain/levels';
 import { useAppStore } from '@/store/useAppStore';
 import { theme } from '@/theme';
@@ -19,7 +19,7 @@ export default function SettingsScreen() {
   const updateSettings = useAppStore((s) => s.updateSettings);
   const setTargetLevel = useAppStore((s) => s.setTargetLevel);
   const db = useAppStore((s) => s.db);
-  const reload = useAppStore((s) => s.reload);
+  const restoreBackup = useAppStore((s) => s.restoreBackup);
   const [restoreJson, setRestoreJson] = useState('');
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -40,10 +40,10 @@ export default function SettingsScreen() {
     }
   }
 
-  const row = (label: string, value: boolean, onChange: (v: boolean) => void) => (
+  const row = (label: string, value: boolean, onChange: (v: boolean) => Promise<void>) => (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing(3) }}>
       <Text style={{ ...theme.font.body, color: theme.colors.text }}>{label}</Text>
-      <Switch accessibilityLabel={label} value={value} onValueChange={onChange} />
+      <Switch accessibilityLabel={label} value={value} onValueChange={(v) => void run(() => onChange(v))} />
     </View>
   );
 
@@ -81,14 +81,14 @@ export default function SettingsScreen() {
       </Card>
 
       <Card title="Workout cues">
-        {row('Sound', settings.soundOn, (v) => void updateSettings({ soundOn: v }))}
-        {row('Haptics', settings.hapticsOn, (v) => void updateSettings({ hapticsOn: v }))}
+        {row('Sound', settings.soundOn, (v) => updateSettings({ soundOn: v }))}
+        {row('Haptics', settings.hapticsOn, (v) => updateSettings({ hapticsOn: v }))}
         <Stepper
           label="Count-in seconds"
           value={settings.countInSec}
           min={3}
           max={30}
-          onChange={(n) => void updateSettings({ countInSec: n })}
+          onChange={(n) => void run(() => updateSettings({ countInSec: n }))}
         />
       </Card>
 
@@ -99,7 +99,7 @@ export default function SettingsScreen() {
           step={GOAL_STEP_MIN}
           min={GOAL_STEP_MIN}
           max={300}
-          onChange={(n) => void updateSettings({ weeklyGoalMin: n })}
+          onChange={(n) => void run(() => updateSettings({ weeklyGoalMin: n }))}
         />
       </Card>
 
@@ -114,7 +114,7 @@ export default function SettingsScreen() {
           })}
         />
         <Text style={{ ...theme.font.body, color: theme.colors.textDim, marginVertical: theme.spacing(3) }}>
-          Paste a backup below to restore. This replaces everything currently stored.
+          Paste a backup below to restore. This replaces everything currently stored. The format is described under File formats in the README.
         </Text>
         <TextInput
           accessibilityLabel="Restore JSON"
@@ -141,8 +141,7 @@ export default function SettingsScreen() {
                 onPress={() => void run(async () => {
                   if (!db) return;
                   setConfirming(false);
-                  await importBackup(db, restoreJson);
-                  await reload();
+                  await restoreBackup(restoreJson);
                   router.back();
                 })}
               />

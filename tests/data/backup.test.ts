@@ -92,4 +92,27 @@ describe('backup', () => {
     expect((await listSessions(db)).map((s) => s.id)).toEqual(['keep']);
     expect((await getBaseline(db))!.workouts).toBe(7);
   });
+
+  describe('rejects bad field values without deleting anything', () => {
+    const base = () => ({
+      version: BACKUP_VERSION, exportedAt: NOW.toISOString(),
+      sessions: [makeSession({ id: 'ok' })], planned: [], levelEvents: [],
+      settings: DEFAULT_SETTINGS, baseline: null,
+    });
+    const cases: Array<[string, (b: ReturnType<typeof base>) => unknown]> = [
+      ['movement', (b) => { b.sessions[0]!.movement = 'JUMP' as never; }],
+      ['kind', (b) => { b.sessions[0]!.kind = 'WEIRD' as never; }],
+      ['effort', (b) => { b.sessions[0]!.effort = 11; }],
+      ['weeklyGoalMin', (b) => { (b.settings as never as Record<string, unknown>).weeklyGoalMin = '80'; }],
+      ['soundOn', (b) => { (b.settings as never as Record<string, unknown>).soundOn = 'yes'; }],
+      ['planDays', (b) => { (b.settings as never as Record<string, unknown>).planDays = [{ dayOfWeek: 9, movement: 'SIX_COUNT' }]; }],
+    ];
+    it.each(cases)('%s', async (_name, mutate) => {
+      await insertSession(db, makeSession({ id: 'keep' }));
+      const b = base();
+      mutate(b);
+      await expect(importBackup(db, JSON.stringify(b))).rejects.toThrow(/could not be read/i);
+      expect((await listSessions(db)).map((s) => s.id)).toEqual(['keep']);
+    });
+  });
 });

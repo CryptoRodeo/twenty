@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { importBackup } from '@/data/backup';
 import type { Db } from '@/data/db';
 import {
   deleteLevelEventsExcept, listLevelEvents, upsertLevelEvents,
@@ -47,6 +48,8 @@ export interface AppState {
   updateSettings: (patch: Partial<Settings>) => Promise<void>;
   /** Choose the level being worked on, then re-plan this week's open slots. Completes nothing. */
   setTargetLevel: (order: number) => Promise<void>;
+  /** Replace all data from a JSON backup, then re-derive levels and plan this week. */
+  restoreBackup: (json: string) => Promise<void>;
   importBaseline: (b: Baseline) => Promise<void>;
   importSessions: (rows: NewSession[]) => Promise<void>;
   ensureWeek: (now: Date) => Promise<void>;
@@ -176,7 +179,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     await reconcileLevelEvents(db, get().baseline, get().settings.targetLevelOrder);
     await get().reload();
     const after = selectProgression(get(), new Date(input.startedAt)).currentLevelOrder;
-    if (after !== null && (before === null || after > before)) set({ pendingLevelUp: after });
+    // Always overwrite, so a flag left by a dismissed celebration cannot replay.
+    set({ pendingLevelUp: after !== null && (before === null || after > before) ? after : null });
     // A fresh install has no baseline, so its week could not be planned at launch;
     // the first session gives it history. ensureWeek never overwrites an existing week.
     // Best-effort: the session is already persisted, so a planning failure must not
@@ -221,6 +225,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     // An explicit choice restarts this week's open targets with the first-week rule.
     await replanOpenSlots(db, get(), new Date(), { restart: true });
     await get().reload();
+  },
+
+  restoreBackup: async (json) => {
+    const db = requireDb(get());
+    await importBackup(db, json);
+    // The restore is committed: derived-state failures must not report a failed restore.
+    try {
+      await get().reload();
+      await settleDerivedState(db, get);
+    } catch {
+      try { await get().reload(); } catch { /* intentionally ignored */ }
+    }
   },
 
   importBaseline: async (b) => {

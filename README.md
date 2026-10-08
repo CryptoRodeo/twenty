@@ -72,6 +72,75 @@ below it count as completed.
 - **Backup**: Settings can export everything as JSON and restore it later.
   Restoring replaces all current data, after a confirmation.
 
+## File formats
+
+### Past-session CSV (Import screen)
+
+One session per line, header optional. Rules: dates are real `YYYY-MM-DD`
+days (stored as 12:00 local time); movement accepts `6`, `six`, `6-count`,
+`N`, `navy`, `navy seal` and similar; duration is in minutes; reps is a whole
+number of 0 or more; effort is 1-10 or blank. Only a row of exactly 20
+minutes can count as a landmark; any other length counts toward totals and
+stats only.
+
+```csv
+date,movement,durationMin,reps,effort
+2026-09-01,6-count,20,100,7
+2026-09-03,six,20,105,
+2026-09-05,N,20,42,8
+2026-09-07,navy seal,15,30,6
+```
+
+### JSON backup (Settings)
+
+Export produces this shape and Restore accepts it. Restoring replaces all
+current data. This trimmed example is valid as written.
+
+```json
+{
+  "version": 1,
+  "exportedAt": "2026-10-07T12:00:00.000Z",
+  "sessions": [
+    {
+      "id": "s1",
+      "movement": "SIX_COUNT",
+      "startedAt": "2026-10-05T06:00:00.000Z",
+      "durationSec": 1200,
+      "targetReps": 100,
+      "completedReps": 104,
+      "effort": 7,
+      "kind": "LANDMARK"
+    }
+  ],
+  "planned": [
+    {
+      "id": "p1",
+      "weekStart": "2026-10-05",
+      "dayOfWeek": 0,
+      "movement": "SIX_COUNT",
+      "targetReps": 100,
+      "isTestDay": false,
+      "sessionId": "s1"
+    }
+  ],
+  "levelEvents": [],
+  "settings": {
+    "weeklyGoalMin": 80,
+    "planDays": [
+      { "dayOfWeek": 0, "movement": "SIX_COUNT" },
+      { "dayOfWeek": 1, "movement": "NAVY_SEAL" }
+    ],
+    "soundOn": true,
+    "hapticsOn": true,
+    "countInSec": 10,
+    "targetLevelOrder": 0
+  },
+  "baseline": null
+}
+```
+
+`kind` is `GUIDED`, `CUSTOM` or `LANDMARK`; `effort` is `null` or 1-10.
+
 ## Known limitation
 
 Rep beeps do not play while the app is in the background; Expo cannot

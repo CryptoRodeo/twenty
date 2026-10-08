@@ -5,8 +5,8 @@ import { insertSession, listSessions } from './sessionsRepo';
 import {
   DEFAULT_SETTINGS, getBaseline, getSettings, saveBaseline, saveSettings,
 } from './settingsRepo';
-import { GRADUATION_ORDER } from '@/domain/levels';
-import type { Baseline, LevelEvent, PlannedSession, Session, Settings } from '@/domain/types';
+import { GRADUATION_ORDER, MOVEMENTS } from '@/domain/levels';
+import type { Baseline, LevelEvent, Movement, PlannedSession, Session, Settings } from '@/domain/types';
 
 export const BACKUP_VERSION = 1;
 
@@ -33,6 +33,8 @@ export async function exportBackup(db: Db, now: Date): Promise<string> {
   return JSON.stringify(file, null, 2);
 }
 
+const SESSION_KINDS: string[] = ['GUIDED', 'CUSTOM', 'LANDMARK'];
+
 const unreadable = (why: string): Error =>
   new Error(`That backup could not be read — ${why}.`);
 
@@ -58,29 +60,40 @@ function parseBackup(json: string): BackupFile {
     if (!Array.isArray(raw[key])) throw unreadable(`"${key}" is missing`);
   }
   const rows = (key: string): unknown[] => raw[key] as unknown[];
-  if (!rows('sessions').every((s) => isRecord(s) && typeof s.id === 'string'
-    && typeof s.movement === 'string' && typeof s.startedAt === 'string'
-    && typeof s.durationSec === 'number' && typeof s.targetReps === 'number'
-    && typeof s.completedReps === 'number' && typeof s.kind === 'string')) {
-    throw unreadable('a session is malformed');
-  }
-  if (!rows('planned').every((p) => isRecord(p) && typeof p.id === 'string'
-    && typeof p.weekStart === 'string' && typeof p.dayOfWeek === 'number'
-    && typeof p.movement === 'string' && typeof p.targetReps === 'number')) {
-    throw unreadable('a planned session is malformed');
-  }
-  if (!rows('levelEvents').every((e) => isRecord(e) && typeof e.id === 'string'
-    && typeof e.levelOrder === 'number' && typeof e.type === 'string'
-    && typeof e.at === 'string')) {
-    throw unreadable('a level event is malformed');
-  }
+  const isMovement = (v: unknown): boolean => MOVEMENTS.includes(v as Movement);
+  rows('sessions').forEach((s, i) => {
+    const ok = isRecord(s) && typeof s.id === 'string' && isMovement(s.movement)
+      && typeof s.startedAt === 'string' && !Number.isNaN(Date.parse(s.startedAt))
+      && typeof s.durationSec === 'number' && typeof s.targetReps === 'number'
+      && typeof s.completedReps === 'number'
+      && SESSION_KINDS.includes(s.kind as string)
+      && (s.effort === null || s.effort === undefined
+        || (Number.isInteger(s.effort) && (s.effort as number) >= 1 && (s.effort as number) <= 10));
+    if (!ok) throw unreadable(`session ${i + 1} is malformed (check movement, kind, effort 1-10 or null, and its numbers)`);
+  });
+  rows('planned').forEach((p, i) => {
+    const ok = isRecord(p) && typeof p.id === 'string' && typeof p.weekStart === 'string'
+      && Number.isInteger(p.dayOfWeek) && (p.dayOfWeek as number) >= 0 && (p.dayOfWeek as number) <= 6
+      && isMovement(p.movement) && typeof p.targetReps === 'number';
+    if (!ok) throw unreadable(`planned session ${i + 1} is malformed`);
+  });
+  rows('levelEvents').forEach((e, i) => {
+    const ok = isRecord(e) && typeof e.id === 'string' && typeof e.levelOrder === 'number'
+      && (e.type === 'REACHED' || e.type === 'EXPIRED') && typeof e.at === 'string';
+    if (!ok) throw unreadable(`level event ${i + 1} is malformed`);
+  });
   if (raw.settings !== undefined && raw.settings !== null) {
-    const order = isRecord(raw.settings) ? raw.settings.targetLevelOrder : undefined;
-    if (!isRecord(raw.settings)
-      || (order !== undefined && (!Number.isInteger(order) || (order as number) < 0
-        || (order as number) > GRADUATION_ORDER))) {
-      throw unreadable('the settings are malformed');
-    }
+    const st = raw.settings;
+    const num = (v: unknown): boolean => v === undefined || (typeof v === 'number' && Number.isFinite(v));
+    const bool = (v: unknown): boolean => v === undefined || typeof v === 'boolean';
+    const ok = isRecord(st) && num(st.weeklyGoalMin) && num(st.countInSec)
+      && bool(st.soundOn) && bool(st.hapticsOn)
+      && (st.targetLevelOrder === undefined || (Number.isInteger(st.targetLevelOrder)
+        && (st.targetLevelOrder as number) >= 0 && (st.targetLevelOrder as number) <= GRADUATION_ORDER))
+      && (st.planDays === undefined || (Array.isArray(st.planDays) && st.planDays.every((d) =>
+        isRecord(d) && Number.isInteger(d.dayOfWeek) && (d.dayOfWeek as number) >= 0
+        && (d.dayOfWeek as number) <= 6 && isMovement(d.movement))));
+    if (!ok) throw unreadable('the settings are malformed (check goal, count-in, sound, haptics, level and plan days)');
   }
   if (raw.baseline !== undefined && raw.baseline !== null && !isRecord(raw.baseline)) {
     throw unreadable('the baseline is malformed');

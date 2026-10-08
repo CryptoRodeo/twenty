@@ -16,6 +16,8 @@ function toCount(text: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+const CSV_EXAMPLE_ROW = '2026-09-01,6-count,20,100,7';
+
 const EMPTY_FIELDS = {
   bestSix: '', bestNavy: '', totalSix: '', totalNavy: '', workouts: '', streak: '',
 };
@@ -137,6 +139,9 @@ export default function ImportScreen() {
       <Card title="Past sessions (optional)">
         <Text style={{ ...theme.font.body, color: theme.colors.textDim, marginBottom: theme.spacing(2) }}>
           {`Paste CSV, one session per line: ${CSV_HEADER}`}
+        </Text>
+        <Text style={{ ...theme.font.body, color: theme.colors.textDim, marginBottom: theme.spacing(2) }}>
+          {`Example: ${CSV_EXAMPLE_ROW}`}
         </Text>
         <TextInput
           accessibilityLabel="Past sessions CSV"

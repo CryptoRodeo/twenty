@@ -503,11 +503,42 @@ describe('pendingLevelUp', () => {
     expect(useAppStore.getState().pendingLevelUp).toBeNull();
   });
 
+  it('clears a stale flag on a non-levelling save', async () => {
+    await add('SIX_COUNT', 160);
+    await add('NAVY_SEAL', 60);
+    expect(useAppStore.getState().pendingLevelUp).toBe(3); // never dismissed
+    await add('SIX_COUNT', 150);
+    expect(useAppStore.getState().pendingLevelUp).toBeNull();
+  });
+
   it('is reset by init', async () => {
     await add('SIX_COUNT', 160);
     await add('NAVY_SEAL', 60);
     expect(useAppStore.getState().pendingLevelUp).toBe(3);
     await useAppStore.getState().init(db);
     expect(useAppStore.getState().pendingLevelUp).toBeNull();
+  });
+});
+
+describe('restoreBackup', () => {
+  it('plans the current week and re-derives level events from an older backup', async () => {
+    jest.useFakeTimers({ now: NOW, doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval'] });
+    try {
+      const old = (movement: 'SIX_COUNT' | 'NAVY_SEAL', reps: number) => ({
+        id: `old-${movement}`, movement, startedAt: new Date(2026, 8, 1, 7, 0).toISOString(),
+        durationSec: 1200, targetReps: reps, completedReps: reps, effort: 7, kind: 'LANDMARK',
+      });
+      const json = JSON.stringify({
+        version: 1, exportedAt: '2026-09-02T00:00:00.000Z',
+        sessions: [old('SIX_COUNT', 160), old('NAVY_SEAL', 60)],
+        planned: [], levelEvents: [], settings: useAppStore.getState().settings, baseline: null,
+      });
+      await useAppStore.getState().restoreBackup(json);
+      expect(await listWeek(db, '2026-10-05')).not.toHaveLength(0);
+      expect((await listLevelEvents(db)).some((e) => e.levelOrder === 3 && e.type === 'REACHED')).toBe(true);
+      expect(useAppStore.getState().sessions).toHaveLength(2);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
