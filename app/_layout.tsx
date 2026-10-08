@@ -44,7 +44,7 @@ export default function RootLayout() {
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
-      {!ready && (
+      {(!ready || error !== null) && (
         <View style={styles.overlay} pointerEvents="auto">
           {error ? (
             <Text style={styles.error}>Could not open the database: {error}</Text>
@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: theme.colors.bg,
     justifyContent: 'center',
-    padding: 24,
+    padding: theme.spacing(6),
   },
-  error: { color: theme.colors.danger, fontSize: 16 },
+  error: { color: theme.colors.danger, ...theme.font.body },
 });
