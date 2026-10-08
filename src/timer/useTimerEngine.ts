@@ -29,19 +29,35 @@ export function useTimerEngine(
   onFinishRef.current = options.onFinish;
 
   if (runtimeRef.current === null) runtimeRef.current = createTimerRuntime(config, Date.now());
-  if (playerRef.current === null) playerRef.current = createCuePlayer(settings);
 
   const [snapshot, setSnapshot] = useState<TimerSnapshot>(() =>
     runtimeRef.current!.snapshot(Date.now()),
   );
 
+  // Created in an effect so StrictMode / fast refresh never reuse a player
+  // that cleanup has already removed.
+  useEffect(() => {
+    const player = createCuePlayer(settings);
+    playerRef.current = player;
+    return () => {
+      player.unload();
+      if (playerRef.current === player) playerRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     const id = setInterval(() => {
+      if (finishedRef.current) {
+        clearInterval(id);
+        return;
+      }
       const result = runtimeRef.current!.tick(Date.now());
-      for (const cue of result.audibleCues) playerRef.current!.play(cue.type);
+      for (const cue of result.audibleCues) playerRef.current?.play(cue.type);
       setSnapshot(result.snapshot);
-      if (result.snapshot.status === 'FINISHED' && !finishedRef.current) {
+      if (result.snapshot.status === 'FINISHED') {
         finishedRef.current = true;
+        clearInterval(id);
         onFinishRef.current(result.snapshot);
       }
     }, TICK_MS);
@@ -55,8 +71,6 @@ export function useTimerEngine(
     });
     return () => sub.remove();
   }, []);
-
-  useEffect(() => () => playerRef.current?.unload(), []);
 
   return {
     snapshot,

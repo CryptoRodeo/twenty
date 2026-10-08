@@ -71,6 +71,15 @@ describe('timer runtime', () => {
     expect(r.snapshot(T0 + 14_000).completedReps).toBe(4);
   });
 
+  it('keeps a later -1 effective after over-adding past the target', () => {
+    const r = createTimerRuntime(config, T0);
+    r.tick(T0 + 14_000);
+    r.adjustReps(+100);
+    expect(r.snapshot(T0 + 14_000).completedReps).toBe(30);
+    r.adjustReps(-1);
+    expect(r.snapshot(T0 + 14_000).completedReps).toBe(29);
+  });
+
   it('never drops below zero reps', () => {
     const r = createTimerRuntime(config, T0);
     r.adjustReps(-5);

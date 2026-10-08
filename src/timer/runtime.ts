@@ -106,9 +106,12 @@ export function createTimerRuntime(config: PacingConfig, startedAtMs: number): T
     },
 
     adjustReps(delta) {
-      manualAdjustment += delta;
-      // Keep the correction meaningful rather than letting it go unboundedly negative.
-      if (autoReps + manualAdjustment < 0) manualAdjustment = -autoReps;
+      // Clamp so the total stays within [0, targetReps]; otherwise a stored
+      // out-of-range correction would swallow later presses of the opposite sign.
+      manualAdjustment = Math.max(
+        -autoReps,
+        Math.min(config.targetReps - autoReps, manualAdjustment + delta),
+      );
     },
 
     end(nowMs) {

@@ -32,7 +32,7 @@ export function createCuePlayer(settings: Settings): CuePlayer {
   function fire(key: keyof typeof SOURCES): void {
     if (!settings.soundOn) return;
     const player = players[key];
-    player.seekTo(0);
+    void player.seekTo(0).catch(() => {});
     player.play();
   }
 
