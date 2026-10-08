@@ -4,7 +4,7 @@ import {
   deleteLevelEventsExcept, listLevelEvents, upsertLevelEvents,
 } from '@/data/levelEventsRepo';
 import {
-  deleteUnlinkedWeek, linkSession, listAllPlanned, listWeek, saveWeek,
+  linkSession, listAllPlanned, listWeek, saveWeek,
 } from '@/data/plannedRepo';
 import {
   deleteSession, insertSession, listSessions, updateSession,
@@ -90,13 +90,14 @@ async function buildWeek(
 /**
  * Replace the targets of this week's slots that no session is linked to.
  * Linked (done) rows are never touched. No-op when the week is unplanned.
+ * Upserts in place (ids come from the existing layout), so a failure part-way
+ * never leaves the week with fewer rows.
  */
 async function replanOpenSlots(db: Db, state: AppState, now: Date): Promise<void> {
   const weekStart = weekStartIso(now);
   const existing = await listWeek(db, weekStart);
   if (existing.length === 0) return;
   const linkedIds = new Set(existing.filter((p) => p.sessionId !== undefined).map((p) => p.id));
-  await deleteUnlinkedWeek(db, weekStart);
   // Edit Week applies from next week: keep this week's day/movement layout.
   const layout = existing.map((p) => ({ dayOfWeek: p.dayOfWeek, movement: p.movement }));
   const fresh = await buildWeek(db, state, now, layout);

@@ -7,7 +7,7 @@ import { PrimaryButton } from '@/components/PrimaryButton';
 import { LANDMARK_DURATION_SEC, MOVEMENTS, MOVEMENT_LABEL } from '@/domain/levels';
 import { formatClock } from '@/domain/pacing';
 import { DAY_NAMES, dayIndex, weekStartIso } from '@/domain/time';
-import { selectNextPlan, selectProgression, useAppStore } from '@/store/useAppStore';
+import { selectNextPlan, selectProgression, selectWeek, useAppStore } from '@/store/useAppStore';
 import { theme } from '@/theme';
 
 export default function TrainScreen() {
@@ -15,8 +15,14 @@ export default function TrainScreen() {
   const now = new Date();
   const plan = useAppStore((s) => selectNextPlan(s, now));
   const progression = useAppStore((s) => selectProgression(s, now));
-  const planDays = useAppStore((s) => s.settings.planDays);
-  const restDay = !planDays.some((d) => d.dayOfWeek === dayIndex(now));
+  const weekRows = useAppStore((s) => selectWeek(s, now).planned);
+  const todayRow = weekRows.find((p) => p.dayOfWeek === dayIndex(now));
+  const emptyText =
+    weekRows.length === 0
+      ? 'No workout planned yet. Use the custom timer for an extra session.'
+      : todayRow?.sessionId !== undefined
+        ? 'Done for today — nice work. Use the custom timer for an extra session.'
+        : 'Rest day — nothing planned. Use the custom timer for an extra session.';
 
   const isToday =
     plan !== null && plan.weekStart === weekStartIso(now) && plan.dayOfWeek === dayIndex(now);
@@ -59,9 +65,7 @@ export default function TrainScreen() {
           </>
         ) : (
           <Text style={{ ...theme.font.body, color: theme.colors.textDim }}>
-            {restDay
-              ? 'Rest day — nothing planned. Use the custom timer for an extra session.'
-              : 'No workout planned yet. Use the custom timer for an extra session.'}
+            {emptyText}
           </Text>
         )}
       </Card>

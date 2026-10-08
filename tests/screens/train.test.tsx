@@ -9,6 +9,7 @@ jest.mock('@/store/useAppStore', () => ({
   useAppStore: (selector: (s: unknown) => unknown) => selector(mockState),
   selectNextPlan: () => mockState.nextPlan,
   selectProgression: () => mockState.progression,
+  selectWeek: () => ({ planned: mockState.weekRows }),
 }));
 
 const PROGRESSION = {
@@ -24,7 +25,8 @@ beforeEach(() => {
   jest.useFakeTimers({ now: new Date(2026, 9, 7, 9, 0) }); // Wednesday 2026-10-07
   mockPush.mockClear();
   mockState = {
-    settings: { countInSec: 10, planDays: [0, 1, 2, 6].map((dayOfWeek) => ({ dayOfWeek, movement: 'NAVY_SEAL' })) },
+    settings: { countInSec: 10 },
+    weekRows: [{ id: 'x', dayOfWeek: 2 }],
     nextPlan: {
       id: '2026-10-05-2', weekStart: '2026-10-05', dayOfWeek: 2,
       movement: 'SIX_COUNT', targetReps: 292, isTestDay: false,
@@ -65,19 +67,28 @@ describe('train screen', () => {
     expect(screen.getByText(/landmark attempt/i)).toBeTruthy();
   });
 
-  it('says rest day only when today is not a plan day', () => {
+  it('says rest day when this week has rows but none for today', () => {
     mockState.nextPlan = null;
-    jest.setSystemTime(new Date(2026, 9, 8, 9, 0)); // Thursday, not a plan day
+    mockState.weekRows = [{ id: 'a', dayOfWeek: 0 }, { id: 'b', dayOfWeek: 6 }];
     render(<TrainScreen />);
     expect(screen.getByText(/rest day/i)).toBeTruthy();
   });
 
-  it('says no workout planned yet when today is a plan day but nothing is planned', () => {
-    mockState.nextPlan = null; // Wednesday is a plan day
+  it('says no workout planned yet when the week has no rows', () => {
+    mockState.nextPlan = null;
+    mockState.weekRows = [];
     render(<TrainScreen />);
     expect(screen.getByText(/no workout planned yet/i)).toBeTruthy();
-    expect(screen.queryByText(/rest day/i)).toBeNull();
     expect(screen.getByLabelText('Open custom timer')).toBeTruthy();
+  });
+
+  it('says done for today when today\'s slot is linked and nothing is later (Sunday)', () => {
+    jest.setSystemTime(new Date(2026, 9, 11, 9, 0)); // Sunday
+    mockState.nextPlan = null;
+    mockState.weekRows = [{ id: 's', dayOfWeek: 6, sessionId: 'sess' }];
+    render(<TrainScreen />);
+    expect(screen.getByText(/done for today/i)).toBeTruthy();
+    expect(screen.queryByText(/no workout planned/i)).toBeNull();
   });
 
   it('opens the custom timer with no prefilled plan', () => {

@@ -271,6 +271,26 @@ describe('importBaseline layout', () => {
   });
 });
 
+describe('importBaseline failure', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('never leaves the week with fewer rows when the re-plan write fails', async () => {
+    const now = new Date();
+    await useAppStore.getState().ensureWeek(now);
+    const count = (await listWeek(db, weekStartIso(now))).length;
+    expect(count).toBeGreaterThan(0);
+    const real = db.runAsync.bind(db);
+    jest.spyOn(db, 'runAsync').mockImplementation(((sql: string, ...a: unknown[]) =>
+      /INSERT INTO planned_sessions/.test(sql)
+        ? Promise.reject(new Error('disk full'))
+        : (real as (...x: unknown[]) => unknown)(sql, ...a)) as never);
+    await expect(useAppStore.getState().importBaseline(
+      makeBaseline({ startLevelOrder: 9, bestLandmark: { SIX_COUNT: 300, NAVY_SEAL: 135 } }),
+    )).rejects.toThrow('disk full');
+    expect((await listWeek(db, weekStartIso(now))).length).toBe(count);
+  });
+});
+
 describe('selectors', () => {
   it('selectWeek returns seven days with today flagged', async () => {
     await useAppStore.getState().ensureWeek(NOW);

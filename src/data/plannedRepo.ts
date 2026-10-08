@@ -61,11 +61,3 @@ export async function listAllPlanned(db: Db): Promise<PlannedSession[]> {
 export async function linkSession(db: Db, plannedId: string, sessionId: string): Promise<void> {
   await db.runAsync('UPDATE planned_sessions SET session_id = ? WHERE id = ?', [sessionId, plannedId]);
 }
-
-/** Remove this week's slots that have no session linked; linked rows stay. */
-export async function deleteUnlinkedWeek(db: Db, weekStart: string): Promise<void> {
-  await db.runAsync(
-    'DELETE FROM planned_sessions WHERE week_start = ? AND session_id IS NULL',
-    [weekStart],
-  );
-}
