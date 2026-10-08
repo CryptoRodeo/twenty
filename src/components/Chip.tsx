@@ -5,12 +5,15 @@ export interface ChipProps {
   label: string;
   selected: boolean;
   onPress: () => void;
+  /** Defaults to `label`; set it when the visible text is ambiguous ("9"). */
+  accessibilityLabel?: string;
 }
 
-export function Chip({ label, selected, onPress }: ChipProps) {
+export function Chip({ label, selected, onPress, accessibilityLabel }: ChipProps) {
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ selected }}
       onPress={onPress}
       style={{

@@ -30,6 +30,7 @@ export default function TimerSummaryScreen() {
   const [completedReps, setCompletedReps] = useState(Number(params.completedReps));
   const [effort, setEffort] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const landmark = progression.nextTargets[movement].target;
   const clearedLandmark =
@@ -37,6 +38,7 @@ export default function TimerSummaryScreen() {
 
   async function save(): Promise<void> {
     setSaving(true);
+    setSaveError(null);
     try {
       await addSession({
         movement,
@@ -50,7 +52,7 @@ export default function TimerSummaryScreen() {
       router.replace('/(tabs)');
     } catch (e) {
       setSaving(false);
-      throw e;
+      setSaveError(e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -79,6 +81,7 @@ export default function TimerSummaryScreen() {
             <Chip
               key={n}
               label={String(n)}
+              accessibilityLabel={`Effort ${n}`}
               selected={effort === n}
               onPress={() => setEffort(n)}
             />
@@ -90,6 +93,11 @@ export default function TimerSummaryScreen() {
       </Card>
 
       <View style={{ gap: theme.spacing(3) }}>
+        {saveError !== null && (
+          <Text style={{ ...theme.font.body, color: theme.colors.danger }}>
+            Could not save your workout: {saveError}. Your numbers are kept — try again.
+          </Text>
+        )}
         <PrimaryButton
           label="Save"
           accessibilityLabel="Save workout"

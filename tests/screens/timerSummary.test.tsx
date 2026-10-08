@@ -37,7 +37,7 @@ describe('timer summary', () => {
 
   it('saves the session with the chosen effort and the planned slot', async () => {
     render(<TimerSummaryScreen />);
-    fireEvent.press(screen.getByText('9'));
+    fireEvent.press(screen.getByLabelText('Effort 9'));
     fireEvent.press(screen.getByLabelText('Save workout'));
     await waitFor(() => expect(mockAddSession).toHaveBeenCalledWith({
       movement: 'SIX_COUNT',
@@ -63,6 +63,19 @@ describe('timer summary', () => {
     render(<TimerSummaryScreen />);
     for (let i = 0; i < 37; i += 1) fireEvent.press(screen.getByLabelText('+ Completed reps'));
     expect(screen.getByText(/landmark cleared/i)).toBeTruthy();
+  });
+
+  it('keeps the user on the summary with an error when saving fails', async () => {
+    mockAddSession.mockRejectedValueOnce(new Error('disk full'));
+    render(<TimerSummaryScreen />);
+    fireEvent.press(screen.getByLabelText('+ Completed reps'));
+    fireEvent.press(screen.getByLabelText('Save workout'));
+    await waitFor(() => expect(screen.getByText(/disk full/)).toBeTruthy());
+    expect(mockReplace).not.toHaveBeenCalled();
+    expect(screen.getByText('289')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('Save workout'));
+    await waitFor(() => expect(mockAddSession).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/(tabs)'));
   });
 
   it('discards without writing anything', () => {
