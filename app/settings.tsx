@@ -169,7 +169,7 @@ export default function SettingsScreen() {
           label="Re-enter baseline"
           accessibilityLabel="Re-enter baseline"
           variant="ghost"
-          onPress={() => router.push('/onboarding/import')}
+          onPress={() => router.push('/onboarding/import?mode=edit')}
         />
       </Card>
     </ScrollView>

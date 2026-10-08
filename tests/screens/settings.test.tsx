@@ -97,4 +97,10 @@ describe('settings', () => {
     await waitFor(() => expect(screen.getByText('step failed')).toBeTruthy());
     await act(async () => {});
   });
+
+  it('opens the import screen in edit mode to re-enter the baseline', () => {
+    render(<SettingsScreen />);
+    fireEvent.press(screen.getByLabelText('Re-enter baseline'));
+    expect(mockPush).toHaveBeenCalledWith('/onboarding/import?mode=edit');
+  });
 });

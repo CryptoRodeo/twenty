@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ScrollView, Text, TextInput, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
 import { PrimaryButton } from '@/components/PrimaryButton';
@@ -22,17 +22,40 @@ const EMPTY_FIELDS = {
   bestSix: '', bestNavy: '', totalSix: '', totalNavy: '', workouts: '', streak: '',
 };
 
+/** Edit mode starts from what is stored, so saving one change never wipes the rest. */
+function fieldsFrom(b: Baseline): typeof EMPTY_FIELDS {
+  return {
+    bestSix: String(b.bestLandmark.SIX_COUNT),
+    bestNavy: String(b.bestLandmark.NAVY_SEAL),
+    totalSix: String(b.totalReps.SIX_COUNT),
+    totalNavy: String(b.totalReps.NAVY_SEAL),
+    workouts: String(b.workouts),
+    streak: String(b.streakWeeks),
+  };
+}
+
+function skippedMessage(n: number): string {
+  return n === 1 ? '1 duplicate row skipped' : `${n} duplicate rows skipped`;
+}
+
 export default function ImportScreen() {
   const router = useRouter();
+  // Settings > "Re-enter baseline" opens this screen with mode=edit.
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const editing = mode === 'edit';
   const importBaseline = useAppStore((s) => s.importBaseline);
   const importSessions = useAppStore((s) => s.importSessions);
   const setTargetLevel = useAppStore((s) => s.setTargetLevel);
+  const storedBaseline = useAppStore((s) => s.baseline);
+  const storedTarget = useAppStore((s) => s.settings.targetLevelOrder);
 
-  const [levelOrder, setLevelOrder] = useState<number | null>(null);
-  const [fields, setFields] = useState(EMPTY_FIELDS);
+  const [levelOrder, setLevelOrder] = useState<number | null>(() => (editing ? storedTarget : null));
+  const [fields, setFields] = useState(() =>
+    (editing && storedBaseline ? fieldsFrom(storedBaseline) : EMPTY_FIELDS));
   const [csv, setCsv] = useState('');
   const [csvErrors, setCsvErrors] = useState<string[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const lifetime = toCount(fields.totalSix) + toCount(fields.totalNavy);
@@ -56,14 +79,24 @@ export default function ImportScreen() {
     </View>
   );
 
-  /** Runs a save; a rejection stays on screen with the entered values intact. */
-  async function run(work: () => Promise<void>): Promise<void> {
+  /**
+   * Runs a save; a rejection stays on screen with the entered values intact.
+   * A save that has something to report (`work` returns a message) stays on
+   * screen to show it; otherwise it goes back.
+   */
+  async function run(work: () => Promise<string | null | void>): Promise<void> {
     if (busy) return;
     setBusy(true);
     setSaveError(null);
+    setNotice(null);
     try {
-      await work();
-      router.back();
+      const message = await work();
+      if (typeof message === 'string') {
+        setNotice(message);
+        setCsv('');
+      } else {
+        router.back();
+      }
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -77,18 +110,24 @@ export default function ImportScreen() {
       setCsvErrors(parsed.errors);
       return;
     }
+    // Fields this form does not show are kept from the stored baseline when editing.
+    const kept = editing ? storedBaseline : null;
     const baseline: Baseline = {
-      startLevelOrder: null,
+      startLevelOrder: kept?.startLevelOrder ?? null,
       bestLandmark: { SIX_COUNT: toCount(fields.bestSix), NAVY_SEAL: toCount(fields.bestNavy) },
       totalReps: { SIX_COUNT: toCount(fields.totalSix), NAVY_SEAL: toCount(fields.totalNavy) },
       workouts: toCount(fields.workouts),
       streakWeeks: toCount(fields.streak),
-      graduationWeekStart: null,
+      graduationWeekStart: kept?.graduationWeekStart ?? null,
     };
     await run(async () => {
-      if (levelOrder !== null) await setTargetLevel(levelOrder);
       await importBaseline(baseline);
-      if (parsed.rows.length > 0) await importSessions(parsed.rows);
+      const result = parsed.rows.length > 0 ? await importSessions(parsed.rows) : null;
+      // The level choice goes last so nothing after it re-plans this week's targets.
+      if (levelOrder !== null) await setTargetLevel(levelOrder);
+      return result !== null && result.skipped > 0
+        ? `Saved. ${result.imported} imported, ${skippedMessage(result.skipped)}.`
+        : null;
     });
   }
 
@@ -143,6 +182,9 @@ export default function ImportScreen() {
         <Text style={{ ...theme.font.body, color: theme.colors.textDim, marginBottom: theme.spacing(2) }}>
           {`Example: ${CSV_EXAMPLE_ROW}`}
         </Text>
+        <Text style={{ ...theme.font.body, color: theme.colors.textDim, marginBottom: theme.spacing(2) }}>
+          Rows are added to your history. A row identical to a stored session (same date, movement, duration and reps) is skipped.
+        </Text>
         <TextInput
           accessibilityLabel="Past sessions CSV"
           multiline
@@ -162,6 +204,12 @@ export default function ImportScreen() {
         ))}
       </Card>
 
+      {notice !== null && (
+        <Text accessibilityRole="alert" style={{ ...theme.font.body, color: theme.colors.success, marginBottom: theme.spacing(3) }}>
+          {notice}
+        </Text>
+      )}
+
       {saveError !== null && (
         <Text accessibilityRole="alert" style={{ ...theme.font.body, color: theme.colors.danger, marginBottom: theme.spacing(3) }}>
           {`Could not save: ${saveError}`}
@@ -175,7 +223,8 @@ export default function ImportScreen() {
           accessibilityLabel="Skip import"
           variant="ghost"
           disabled={busy}
-          onPress={() => void run(() => importBaseline(ZERO_BASELINE))}
+          // Editing an existing baseline: Skip leaves it untouched and writes nothing.
+          onPress={() => (editing ? router.back() : void run(() => importBaseline(ZERO_BASELINE)))}
         />
       </View>
     </ScrollView>
