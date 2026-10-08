@@ -1,9 +1,7 @@
 import { create } from 'zustand';
 import { importBackup } from '@/data/backup';
 import type { Db } from '@/data/db';
-import {
-  deleteLevelEventsExcept, listLevelEvents, upsertLevelEvents,
-} from '@/data/levelEventsRepo';
+import { deleteLevelEventsExcept, upsertLevelEvents } from '@/data/levelEventsRepo';
 import {
   linkSession, listAllPlanned, listWeek, saveWeek,
 } from '@/data/plannedRepo';
@@ -22,7 +20,7 @@ import {
 } from '@/domain/stats';
 import { DAY_LETTERS, addDays, dayIndex, parseIsoDate, toIsoDate, weekStartIso } from '@/domain/time';
 import type {
-  Baseline, LevelEvent, Movement, PlanDay, MovementMap, NewSession, PlannedSession, Session, Settings,
+  Baseline, Movement, PlanDay, MovementMap, NewSession, PlannedSession, Session, Settings,
 } from '@/domain/types';
 
 export type { NewSession };
@@ -43,7 +41,6 @@ export interface AppState {
   db: Db | null;
   sessions: Session[];
   planned: PlannedSession[];
-  levelEvents: LevelEvent[];
   settings: Settings;
   baseline: Baseline | null;
   /** Level order just reached by the last saved session; the summary celebrates it. */
@@ -188,7 +185,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   db: null,
   sessions: [],
   planned: [],
-  levelEvents: [],
   settings: DEFAULT_SETTINGS,
   baseline: null,
   pendingLevelUp: null,
@@ -201,14 +197,13 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   reload: async () => {
     const db = requireDb(get());
-    const [sessions, planned, levelEvents, settings, baseline] = await Promise.all([
+    const [sessions, planned, settings, baseline] = await Promise.all([
       listSessions(db),
       listAllPlanned(db),
-      listLevelEvents(db),
       getSettings(db),
       getBaseline(db),
     ]);
-    set({ sessions, planned, levelEvents, settings, baseline });
+    set({ sessions, planned, settings, baseline });
   },
 
   addSession: async (input, plannedId) => {
@@ -407,10 +402,6 @@ export function selectStats(s: AppState, now: Date): StatsView {
       now,
     }),
   };
-}
-
-export function selectTodaysPlan(s: AppState, now: Date): PlannedSession | null {
-  return selectWeek(s, now).days[dayIndex(now)]?.planned ?? null;
 }
 
 /** Today's open slot if there is one, otherwise the next open day this week. */

@@ -7,7 +7,6 @@ import { listSessions } from '@/data/sessionsRepo';
 import {
   selectProgression,
   selectStats,
-  selectTodaysPlan,
   selectWeek,
   useAppStore,
 } from '@/store/useAppStore';
@@ -217,7 +216,6 @@ describe('level event sync', () => {
     await useAppStore.getState().addSession(landmark('NAVY_SEAL', 60));
     await useAppStore.getState().removeSession(six.id);
     expect((await listLevelEvents(db)).map((e) => e.levelOrder)).not.toContain(3);
-    expect(useAppStore.getState().levelEvents.map((e) => e.levelOrder)).not.toContain(3);
   });
 });
 
@@ -439,13 +437,6 @@ describe('selectors', () => {
       NOW,
     );
     expect(done.days[0]!.missed).toBe(false);
-  });
-
-  it('selectTodaysPlan finds the slot for today only', async () => {
-    await useAppStore.getState().ensureWeek(NOW);
-    expect(selectTodaysPlan(useAppStore.getState(), NOW)!.dayOfWeek).toBe(2);
-    const thursday = new Date(2026, 9, 8, 7, 0);
-    expect(selectTodaysPlan(useAppStore.getState(), thursday)).toBeNull();
   });
 
   it('selectProgression reflects stored sessions', async () => {

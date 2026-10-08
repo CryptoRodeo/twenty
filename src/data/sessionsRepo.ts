@@ -75,11 +75,3 @@ export async function listSessions(db: Db): Promise<Session[]> {
   );
   return rows.map(toDomain);
 }
-
-export async function getSession(db: Db, id: string): Promise<Session | null> {
-  const rows = await db.getAllAsync<Row>(
-    `SELECT ${COLUMNS} FROM sessions WHERE id = ?`,
-    [id],
-  );
-  return rows[0] ? toDomain(rows[0]) : null;
-}

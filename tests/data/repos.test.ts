@@ -1,11 +1,15 @@
 import { runMigrations } from '@/data/migrations';
 import { deleteLevelEventsExcept, listLevelEvents, upsertLevelEvents } from '@/data/levelEventsRepo';
 import { linkSession, listAllPlanned, listWeek, saveWeek } from '@/data/plannedRepo';
-import { deleteSession, getSession, insertSession, insertSessions, listSessions, updateSession } from '@/data/sessionsRepo';
+import { deleteSession, insertSession, insertSessions, listSessions, updateSession } from '@/data/sessionsRepo';
 import { DEFAULT_SETTINGS, getBaseline, getSettings, saveBaseline, saveSettings } from '@/data/settingsRepo';
 import { buildWeek, DEFAULT_PLAN_DAYS } from '@/domain/planner';
 import { makeBaseline, makeSession } from '../helpers/factories';
 import { createTestDb, type TestDb } from '../helpers/testDb';
+
+async function findSession(db: Parameters<typeof listSessions>[0], id: string) {
+  return (await listSessions(db)).find((s) => s.id === id) ?? null;
+}
 
 let db: TestDb;
 
@@ -20,12 +24,12 @@ describe('sessionsRepo', () => {
   it('round-trips a session including null effort and notes', async () => {
     const s = makeSession({ id: 'x1', effort: null, notes: 'felt heavy' });
     await insertSession(db, s);
-    expect(await getSession(db, 'x1')).toEqual(s);
+    expect(await findSession(db, 'x1')).toEqual(s);
   });
 
   it('omits `notes` entirely when the column is null', async () => {
     await insertSession(db, makeSession({ id: 'x2', notes: undefined }));
-    const loaded = await getSession(db, 'x2');
+    const loaded = await findSession(db, 'x2');
     expect(loaded).not.toHaveProperty('notes');
   });
 
@@ -39,13 +43,13 @@ describe('sessionsRepo', () => {
     const s = makeSession({ id: 'u1', completedReps: 100, effort: 7 });
     await insertSession(db, s);
     await updateSession(db, { ...s, completedReps: 288, effort: 9 });
-    expect(await getSession(db, 'u1')).toMatchObject({ completedReps: 288, effort: 9 });
+    expect(await findSession(db, 'u1')).toMatchObject({ completedReps: 288, effort: 9 });
   });
 
   it('deletes a session and returns null for it afterwards', async () => {
     await insertSession(db, makeSession({ id: 'd1' }));
     await deleteSession(db, 'd1');
-    expect(await getSession(db, 'd1')).toBeNull();
+    expect(await findSession(db, 'd1')).toBeNull();
   });
 });
 
