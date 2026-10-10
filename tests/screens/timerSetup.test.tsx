@@ -66,7 +66,25 @@ describe('timer setup', () => {
   it('defaults to 100 reps when there are no params and no plan', () => {
     mockParams = {};
     render(<TimerSetupScreen />);
-    expect(screen.getByText('100')).toBeTruthy();
+    expect(screen.getByDisplayValue('100')).toBeTruthy();
     expect(screen.getByText('1 rep every 12.00 s')).toBeTruthy();
+  });
+
+  it('lets the target be typed on the number pad', () => {
+    render(<TimerSetupScreen />);
+    const field = screen.getByLabelText('Target reps');
+    expect(field.props.keyboardType).toBe('number-pad');
+    fireEvent.changeText(field, '50');
+    expect(screen.getByText('1 rep every 24.00 s')).toBeTruthy();
+  });
+
+  it('starts with a typed target without leaving the field', () => {
+    render(<TimerSetupScreen />);
+    fireEvent.changeText(screen.getByLabelText('Target reps'), '50');
+    fireEvent.press(screen.getByLabelText('Start workout'));
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/timer/run',
+      params: { ...BASE, targetReps: '50' },
+    });
   });
 });

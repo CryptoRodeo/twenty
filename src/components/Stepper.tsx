@@ -1,5 +1,6 @@
 import { Pressable, Text, View } from 'react-native';
 import { theme } from '@/theme';
+import { NumberField } from './NumberField';
 
 export interface StepperProps {
   label: string;
@@ -37,9 +38,11 @@ export function Stepper({
       </Text>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         {button('−', -step)}
-        <Text style={{ ...theme.font.h1, color: theme.colors.text }}>
-          {format ? format(value) : String(value)}
-        </Text>
+        {format ? (
+          <Text style={{ ...theme.font.h1, color: theme.colors.text }}>{format(value)}</Text>
+        ) : (
+          <NumberField value={value} onChange={onChange} accessibilityLabel={label} min={min} max={max} />
+        )}
         {button('+', step)}
       </View>
     </View>
