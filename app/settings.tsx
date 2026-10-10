@@ -48,7 +48,11 @@ export default function SettingsScreen() {
   );
 
   return (
-    <ScrollView contentContainerStyle={{ padding: theme.spacing(4) }} style={{ backgroundColor: theme.colors.bg }}>
+    <ScrollView
+      contentContainerStyle={{ padding: theme.spacing(4) }}
+      style={{ backgroundColor: theme.colors.bg }}
+      keyboardShouldPersistTaps="handled"
+    >
       {error !== null && (
         <Text accessibilityRole="alert" style={{ ...theme.font.body, color: theme.colors.danger, marginBottom: theme.spacing(3) }}>
           {error}
@@ -88,6 +92,7 @@ export default function SettingsScreen() {
           value={settings.countInSec}
           min={3}
           max={30}
+          commitOnBlur
           onChange={(n) => void run(() => updateSettings({ countInSec: n }))}
         />
       </Card>
@@ -99,6 +104,7 @@ export default function SettingsScreen() {
           step={GOAL_STEP_MIN}
           min={GOAL_STEP_MIN}
           max={300}
+          commitOnBlur
           onChange={(n) => void run(() => updateSettings({ weeklyGoalMin: n }))}
         />
       </Card>

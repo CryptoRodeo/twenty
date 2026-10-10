@@ -69,6 +69,7 @@ export default function TimerSummaryScreen() {
     <ScrollView
       contentContainerStyle={{ padding: theme.spacing(4) }}
       style={{ backgroundColor: theme.colors.bg }}
+      keyboardShouldPersistTaps="handled"
     >
       <Card title={`${MOVEMENT_LABEL[movement]} • ${formatClock(durationSec)}`}>
         <Text style={{ ...theme.font.h1, color: theme.colors.text, marginBottom: theme.spacing(3) }}>

@@ -10,10 +10,12 @@ export interface StepperProps {
   min?: number;
   max?: number;
   format?: (value: number) => string;
+  /** See `NumberField.commitOnBlur`. */
+  commitOnBlur?: boolean;
 }
 
 export function Stepper({
-  label, value, onChange, step = 1, min = 1, max = Number.MAX_SAFE_INTEGER, format,
+  label, value, onChange, step = 1, min = 1, max = Number.MAX_SAFE_INTEGER, format, commitOnBlur,
 }: StepperProps) {
   const clamp = (n: number) => Math.max(min, Math.min(max, n));
   const button = (text: string, delta: number) => (
@@ -41,7 +43,10 @@ export function Stepper({
         {format ? (
           <Text style={{ ...theme.font.h1, color: theme.colors.text }}>{format(value)}</Text>
         ) : (
-          <NumberField value={value} onChange={onChange} accessibilityLabel={label} min={min} max={max} />
+          <NumberField
+            value={value} onChange={onChange} accessibilityLabel={label}
+            min={min} max={max} commitOnBlur={commitOnBlur}
+          />
         )}
         {button('+', step)}
       </View>

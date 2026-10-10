@@ -8,6 +8,8 @@ export interface NumberFieldProps {
   accessibilityLabel: string;
   min?: number;
   max?: number;
+  /** Report only when the field is left — for screens that save every change. */
+  commitOnBlur?: boolean;
 }
 
 /**
@@ -16,7 +18,7 @@ export interface NumberFieldProps {
  * empty input reverts and out-of-range input clamps when the field is left.
  */
 export function NumberField({
-  value, onChange, accessibilityLabel, min = 0, max = Number.MAX_SAFE_INTEGER,
+  value, onChange, accessibilityLabel, min = 0, max = Number.MAX_SAFE_INTEGER, commitOnBlur = false,
 }: NumberFieldProps) {
   const [draft, setDraft] = useState(String(value));
   useEffect(() => setDraft(String(value)), [value]);
@@ -24,6 +26,7 @@ export function NumberField({
   function change(text: string): void {
     const digits = text.replace(/\D/g, '');
     setDraft(digits);
+    if (commitOnBlur) return;
     const n = Number.parseInt(digits, 10);
     if (!Number.isNaN(n) && n >= min && n <= max && n !== value) onChange(n);
   }

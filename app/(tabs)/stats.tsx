@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
 import { movementColor } from '@/components/MovementBadge';
@@ -195,7 +195,10 @@ export default function StatsScreen() {
         animationType="slide"
         onRequestClose={() => setEditing(null)}
       >
-        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: theme.colors.scrim }}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: theme.colors.scrim }}
+        >
           <View
             style={{
               backgroundColor: theme.colors.bg, padding: theme.spacing(4),
@@ -249,7 +252,7 @@ export default function StatsScreen() {
               />
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </ScrollView>
   );

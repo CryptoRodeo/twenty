@@ -76,4 +76,16 @@ describe('NumberField', () => {
     rerender(<NumberField value={11} onChange={() => {}} accessibilityLabel="Reps" />);
     expect(screen.getByDisplayValue('11')).toBeTruthy();
   });
+
+  it('with commitOnBlur, only reports the value when the field is left', () => {
+    const spy = jest.fn();
+    render(<NumberField value={60} onChange={spy} accessibilityLabel="Reps" commitOnBlur />);
+    const input = screen.getByLabelText('Reps');
+    fireEvent.changeText(input, '20');
+    fireEvent.changeText(input, '200');
+    expect(spy).not.toHaveBeenCalled();
+    fireEvent(input, 'blur');
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith(200);
+  });
 });

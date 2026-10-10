@@ -1,3 +1,4 @@
+import { ScrollView } from 'react-native';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import TimerSummaryScreen from '../../app/timer/summary';
 
@@ -32,6 +33,11 @@ beforeEach(() => {
 });
 
 describe('timer summary', () => {
+  it('lets a tap on Save go through while the keyboard is up', () => {
+    render(<TimerSummaryScreen />);
+    expect(screen.UNSAFE_getByType(ScrollView).props.keyboardShouldPersistTaps).toBe('handled');
+  });
+
   it('shows the timer count and assumes it is right', () => {
     render(<TimerSummaryScreen />);
     expect(screen.getByText('You did 288 / 292')).toBeTruthy();
