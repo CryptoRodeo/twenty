@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
 import { PrimaryButton } from '@/components/PrimaryButton';
-import { Stepper } from '@/components/Stepper';
+import { NumberField } from '@/components/NumberField';
 import { LANDMARK_DURATION_SEC, MOVEMENT_LABEL } from '@/domain/levels';
 import { formatClock } from '@/domain/pacing';
 import type { Movement, SessionKind } from '@/domain/types';
@@ -27,7 +27,11 @@ export default function TimerSummaryScreen() {
   const durationSec = Number(params.durationSec);
   const targetReps = Number(params.targetReps);
 
-  const [completedReps, setCompletedReps] = useState(Number(params.completedReps));
+  /** What the timer counted, assuming every paced rep was done. */
+  const counted = Number(params.completedReps);
+  const [confirmed, setConfirmed] = useState(true);
+  const [enteredReps, setEnteredReps] = useState(counted);
+  const completedReps = confirmed ? counted : enteredReps;
   const [effort, setEffort] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -67,12 +71,33 @@ export default function TimerSummaryScreen() {
       style={{ backgroundColor: theme.colors.bg }}
     >
       <Card title={`${MOVEMENT_LABEL[movement]} • ${formatClock(durationSec)}`}>
-        <Stepper
-          label="Completed reps"
-          value={completedReps}
-          onChange={setCompletedReps}
-          min={0}
-        />
+        <Text style={{ ...theme.font.h1, color: theme.colors.text, marginBottom: theme.spacing(3) }}>
+          {`You did ${counted} / ${targetReps}`}
+        </Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing(2), marginBottom: theme.spacing(3) }}>
+          <Chip
+            label="Yes, that's right"
+            accessibilityLabel="Confirm timer count"
+            selected={confirmed}
+            onPress={() => setConfirmed(true)}
+          />
+          <Chip
+            label="I did a different number"
+            accessibilityLabel="Enter a different number"
+            selected={!confirmed}
+            onPress={() => setConfirmed(false)}
+          />
+        </View>
+        {!confirmed && (
+          <View style={{ alignItems: 'center', marginBottom: theme.spacing(3) }}>
+            <NumberField
+              value={enteredReps}
+              onChange={setEnteredReps}
+              accessibilityLabel="Completed reps"
+              min={0}
+            />
+          </View>
+        )}
         {clearedLandmark && (
           <Text style={{ ...theme.font.h2, color: theme.colors.success }}>
             Landmark cleared — {completedReps} / {landmark}
