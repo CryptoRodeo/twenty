@@ -12,7 +12,6 @@ export interface TimerEngine {
   snapshot: TimerSnapshot;
   pause: () => void;
   resume: () => void;
-  adjustReps: (delta: number) => void;
   endEarly: () => void;
 }
 
@@ -80,10 +79,6 @@ export function useTimerEngine(
     }, []),
     resume: useCallback(() => {
       runtimeRef.current!.resume(Date.now());
-      setSnapshot(runtimeRef.current!.snapshot(Date.now()));
-    }, []),
-    adjustReps: useCallback((delta: number) => {
-      runtimeRef.current!.adjustReps(delta);
       setSnapshot(runtimeRef.current!.snapshot(Date.now()));
     }, []),
     endEarly: useCallback(() => {

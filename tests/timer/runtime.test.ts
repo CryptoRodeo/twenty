@@ -32,8 +32,6 @@ describe('timer runtime', () => {
     }
     const snap = r.snapshot(T0 + 26_001);
     expect(snap.completedReps).toBe(5);
-    expect(snap.dueReps).toBe(5);
-    expect(snap.onPaceDelta).toBe(0);
     expect(snap.elapsedSec).toBeCloseTo(16.001, 3);
   });
 
@@ -59,31 +57,6 @@ describe('timer runtime', () => {
     const after = r.tick(T0 + 64_000);
     expect(after.snapshot.elapsedSec).toBeCloseTo(9, 3);
     expect(after.snapshot.completedReps).toBe(3);
-  });
-
-  it('applies manual +1 / −1 corrections without moving the clock', () => {
-    const r = createTimerRuntime(config, T0);
-    r.tick(T0 + 14_000); // 2 reps due and counted
-    r.adjustReps(-1);
-    expect(r.snapshot(T0 + 14_000).completedReps).toBe(1);
-    expect(r.snapshot(T0 + 14_000).onPaceDelta).toBe(-1);
-    r.adjustReps(+3);
-    expect(r.snapshot(T0 + 14_000).completedReps).toBe(4);
-  });
-
-  it('keeps a later -1 effective after over-adding past the target', () => {
-    const r = createTimerRuntime(config, T0);
-    r.tick(T0 + 14_000);
-    r.adjustReps(+100);
-    expect(r.snapshot(T0 + 14_000).completedReps).toBe(30);
-    r.adjustReps(-1);
-    expect(r.snapshot(T0 + 14_000).completedReps).toBe(29);
-  });
-
-  it('never drops below zero reps', () => {
-    const r = createTimerRuntime(config, T0);
-    r.adjustReps(-5);
-    expect(r.snapshot(T0).completedReps).toBe(0);
   });
 
   it('marks the final minute and the end exactly once', () => {

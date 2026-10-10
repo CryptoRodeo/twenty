@@ -1,6 +1,6 @@
 import {
   buildCueSchedule, createClock, cuesBetween, elapsedMs, formatClock, isPaused,
-  onPaceDelta, pauseClock, remainingSec, repProgress, repsDueAt, resumeClock,
+  pauseClock, remainingSec, repProgress, resumeClock,
   type Cue, type ClockState, type PacingConfig,
 } from '@/domain/pacing';
 
@@ -16,10 +16,8 @@ export interface TimerSnapshot {
   elapsedSec: number;
   remainingSec: number;
   clockLabel: string;
-  dueReps: number;
   completedReps: number;
   repProgress: number;
-  onPaceDelta: number;
 }
 
 export interface TickResult {
@@ -34,7 +32,6 @@ export interface TimerRuntime {
   tick(nowMs: number): TickResult;
   pause(nowMs: number): void;
   resume(nowMs: number): void;
-  adjustReps(delta: number): void;
   end(nowMs: number): TimerSnapshot;
   snapshot(nowMs: number): TimerSnapshot;
 }
@@ -43,16 +40,12 @@ export function createTimerRuntime(config: PacingConfig, startedAtMs: number): T
   const schedule = buildCueSchedule(config);
   let clock: ClockState = createClock(startedAtMs);
   let lastSeenSec = -config.countInSec - 1;
-  let manualAdjustment = 0;
   let autoReps = 0;
   let finished = false;
 
   /** Workout time: t = 0 is when rep 1 starts, so the count-in is negative. */
   const workoutSec = (nowMs: number): number =>
     elapsedMs(clock, nowMs) / 1000 - config.countInSec;
-
-  const completed = (): number =>
-    Math.max(0, Math.min(config.targetReps, autoReps + manualAdjustment));
 
   function snapshot(nowMs: number): TimerSnapshot {
     const t = workoutSec(nowMs);
@@ -67,10 +60,8 @@ export function createTimerRuntime(config: PacingConfig, startedAtMs: number): T
       elapsedSec: t,
       remainingSec: remainingSec(config, Math.max(0, t)),
       clockLabel: formatClock(remainingSec(config, Math.max(0, t))),
-      dueReps: repsDueAt(config, t),
-      completedReps: completed(),
+      completedReps: autoReps,
       repProgress: repProgress(config, t),
-      onPaceDelta: onPaceDelta(config, t, completed()),
     };
   }
 
@@ -103,15 +94,6 @@ export function createTimerRuntime(config: PacingConfig, startedAtMs: number): T
 
     resume(nowMs) {
       clock = resumeClock(clock, nowMs);
-    },
-
-    adjustReps(delta) {
-      // Clamp so the total stays within [0, targetReps]; otherwise a stored
-      // out-of-range correction would swallow later presses of the opposite sign.
-      manualAdjustment = Math.max(
-        -autoReps,
-        Math.min(config.targetReps - autoReps, manualAdjustment + delta),
-      );
     },
 
     end(nowMs) {

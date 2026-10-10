@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { PaceRing } from '@/components/PaceRing';
 import { PrimaryButton } from '@/components/PrimaryButton';
@@ -10,11 +10,6 @@ import { useAppStore } from '@/store/useAppStore';
 import { useTimerEngine } from '@/timer/useTimerEngine';
 import type { TimerSnapshot } from '@/timer/runtime';
 import { theme } from '@/theme';
-
-function paceLabel(delta: number): string {
-  if (delta === 0) return 'On pace';
-  return delta > 0 ? `${delta} ahead` : `${Math.abs(delta)} behind`;
-}
 
 export default function TimerRunScreen() {
   const router = useRouter();
@@ -53,20 +48,6 @@ export default function TimerRunScreen() {
   const paused = snapshot.status === 'PAUSED';
   const countingIn = snapshot.status === 'COUNT_IN';
 
-  const smallButton = (label: string, onPress: () => void, glyph: string) => (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
-      style={{
-        flex: 1, paddingVertical: theme.spacing(4), alignItems: 'center',
-        borderRadius: theme.radii.card, borderWidth: 1, borderColor: theme.colors.border,
-      }}
-    >
-      <Text style={{ ...theme.font.h1, color: theme.colors.text }}>{glyph}</Text>
-    </Pressable>
-  );
-
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.bg, padding: theme.spacing(4), justifyContent: 'space-between' }}>
       <View style={{ alignItems: 'center', gap: theme.spacing(2) }}>
@@ -84,25 +65,15 @@ export default function TimerRunScreen() {
         )}
       </View>
 
-      <View style={{ alignItems: 'center', gap: theme.spacing(2) }}>
+      <View style={{ alignItems: 'center' }}>
         <PaceRing progress={snapshot.repProgress} color={color}>
           <Text style={{ ...theme.font.h1, color: theme.colors.text }}>
             {`${snapshot.completedReps} / ${targetReps}`}
           </Text>
-          <Text style={{ ...theme.font.body, color: theme.colors.textDim, marginTop: theme.spacing(2) }}>
-            {paceLabel(snapshot.onPaceDelta)}
-          </Text>
         </PaceRing>
-        <Text style={{ ...theme.font.body, color: theme.colors.textDim }}>
-          {`Expected ${snapshot.dueReps}`}
-        </Text>
       </View>
 
       <View style={{ gap: theme.spacing(3) }}>
-        <View style={{ flexDirection: 'row', gap: theme.spacing(3) }}>
-          {smallButton('Remove one rep', () => engine.adjustReps(-1), '−1')}
-          {smallButton('Add one rep', () => engine.adjustReps(1), '+1')}
-        </View>
         <PrimaryButton
           label={paused ? 'Resume' : 'Pause'}
           accessibilityLabel={paused ? 'Resume' : 'Pause'}
