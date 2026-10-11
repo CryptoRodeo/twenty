@@ -5,6 +5,18 @@ timer that beeps once per rep, a roadmap, and progress stats. Single user, no
 accounts, no backend, no network calls. Original app, not affiliated with any
 commercial training program.
 
+## Photos
+### Home
+<img src="./docs/photos/homepage.png" width="50%">
+<img src="./docs/photos/homepage_lower.jpg" width="50%">
+
+## Train
+<img src="./docs/photos/train_page.png" width="50%">
+
+## Levels
+<img src="./docs/photos/levels_page.png" width="50%">
+<img src="./docs/photos/levels_page_lower.jpg" width="50%">
+
 ## Install (Android)
 
 The latest `.apk` is on the [releases page](https://github.com/CryptoRodeo/twenty/releases/latest).
@@ -20,6 +32,8 @@ Publishing a new version is covered in [docs/releasing.md](docs/releasing.md).
 Which file owns which rule or setting is listed in [docs/areas.md](docs/areas.md).
 
 ## Run it
+
+Needs Node 22 (pinned in `.nvmrc`; with nvm, run `nvm use`).
 
 ```bash
 npm install

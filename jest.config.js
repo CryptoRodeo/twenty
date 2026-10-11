@@ -8,4 +8,8 @@ module.exports = {
   moduleNameMapper: { '^@/(.*)$': '<rootDir>/src/$1' },
   testMatch: ['<rootDir>/tests/**/*.test.ts', '<rootDir>/tests/**/*.test.tsx'],
   collectCoverageFrom: ['src/domain/**/*.ts'],
+  // On a cold transform cache (always the case in CI) the first test in a
+  // screen file spends 15-20 s loading React Native; async tests would hit
+  // the 5 s default.
+  testTimeout: 30000,
 };
