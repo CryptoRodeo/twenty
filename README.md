@@ -17,6 +17,7 @@ Your phone will ask you to allow installs from Obtainium (or your browser, if
 you downloaded the `.apk` directly) the first time.
 
 Publishing a new version is covered in [docs/releasing.md](docs/releasing.md).
+Which file owns which rule or setting is listed in [docs/areas.md](docs/areas.md).
 
 ## Run it
 
