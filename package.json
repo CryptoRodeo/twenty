@@ -42,5 +42,6 @@
     "test:watch": "jest --watch",
     "typecheck": "tsc --noEmit"
   },
-  "private": true
+  "private": true,
+  "license": "GPL-3.0-or-later"
 }

@@ -178,3 +178,16 @@ Rep beeps do not play while the app is in the background; Expo cannot
 reliably schedule audio at sub-5-second intervals there. Workout position is
 recomputed from timestamps when the app returns to the foreground, so the
 count and clock stay correct; only the sound pauses.
+
+## License
+
+Copyright (C) 2026 Bryan Ramos
+
+Twenty is free software: you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. See [LICENSE](LICENSE).
+
+In short: you may use, change and even sell it, but anything you distribute
+that is based on it must keep this notice, credit the original, and ship its
+full source code under the same license.
