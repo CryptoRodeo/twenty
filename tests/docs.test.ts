@@ -31,6 +31,13 @@ describe('README examples', () => {
     db.close();
   });
 
+  it('documents every secret the release workflow reads', () => {
+    const workflow = readFileSync(join(__dirname, '..', '.github', 'workflows', 'release.yml'), 'utf8');
+    const secrets = [...new Set([...workflow.matchAll(/secrets\.([A-Z0-9_]+)/g)].map((m) => m[1]!))];
+    expect(secrets.length).toBeGreaterThan(0);
+    for (const name of secrets) expect(readme).toContain(name);
+  });
+
   it('names the graduation window by its constant rather than a hard-coded day count', () => {
     expect(readme).toContain('GRADUATION_VALID_DAYS');
     expect(readme).not.toMatch(/\b30 days\b/);
