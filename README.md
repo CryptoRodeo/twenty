@@ -14,6 +14,7 @@ commercial training program.
 <p align="center">
   <img src="docs/photos/begin_workout.png" width="200" alt="Workout setup: movement, target reps and duration">
   <img src="docs/photos/workout_started.png" width="200" alt="Workout running: countdown and rep ring">
+  <img src="docs/photos/edit_week.png" width="200" alt="Edit week: pick a movement or rest for each day">
 </p>
 
 <details>
