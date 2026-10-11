@@ -5,17 +5,25 @@ timer that beeps once per rep, a roadmap, and progress stats. Single user, no
 accounts, no backend, no network calls. Original app, not affiliated with any
 commercial training program.
 
-## Photos
-### Home
-<img src="./docs/photos/homepage.png" width="50%">
-<img src="./docs/photos/homepage_lower.jpg" width="50%">
+<p align="center">
+  <img src="docs/photos/homepage.png" width="200" alt="Home: starting level and this week's plan">
+  <img src="docs/photos/train_page.png" width="200" alt="Train: guided workout and custom timer">
+  <img src="docs/photos/levels_page.png" width="200" alt="Levels: the 11-level roadmap">
+  <img src="docs/photos/stats_page.png" width="200" alt="Stats: totals, records and progress">
+</p>
+<p align="center">
+  <img src="docs/photos/begin_workout.png" width="200" alt="Workout setup: movement, target reps and duration">
+  <img src="docs/photos/workout_started.png" width="200" alt="Workout running: countdown and rep ring">
+</p>
 
-## Train
-<img src="./docs/photos/train_page.png" width="50%">
-
-## Levels
-<img src="./docs/photos/levels_page.png" width="50%">
-<img src="./docs/photos/levels_page_lower.jpg" width="50%">
+<details>
+<summary>More screenshots</summary>
+<p align="center">
+  <img src="docs/photos/homepage_lower.jpg" width="200" alt="Home, scrolled: week circles and level progress">
+  <img src="docs/photos/levels_page_lower.png" width="200" alt="Levels, scrolled">
+  <img src="docs/photos/stats_page_lower.png" width="200" alt="Stats, scrolled">
+</p>
+</details>
 
 ## Install (Android)
 
