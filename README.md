@@ -1,5 +1,7 @@
 # Twenty
 
+[![Latest release](https://img.shields.io/github/v/release/CryptoRodeo/twenty)](https://github.com/CryptoRodeo/twenty/releases/latest)
+
 A personal, offline burpee training tracker: an 11-level program, a pacing
 timer that beeps once per rep, a roadmap, and progress stats. Single user, no
 accounts, no backend, no network calls. Original app, not affiliated with any
