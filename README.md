@@ -5,6 +5,8 @@ timer that beeps once per rep, a roadmap, and progress stats. Single user, no
 accounts, no backend, no network calls. Original app, not affiliated with any
 commercial training program.
 
+**Android only.** There is no iOS release, and none is planned for now.
+
 <p align="center">
   <img src="docs/photos/homepage.png" width="200" alt="Home: starting level and this week's plan">
   <img src="docs/photos/train_page.png" width="200" alt="Train: guided workout and custom timer">
@@ -26,9 +28,9 @@ commercial training program.
 </p>
 </details>
 
-## Install (Android)
+## Install
 
-The latest `.apk` is on the [releases page](https://github.com/CryptoRodeo/twenty/releases/latest).
+Android only. The latest `.apk` is on the [releases page](https://github.com/CryptoRodeo/twenty/releases/latest).
 
 To get updates automatically, use [Obtainium](https://github.com/ImranR98/Obtainium):
 tap **Add App**, paste `https://github.com/CryptoRodeo/twenty`, then **Add** and
@@ -50,7 +52,8 @@ npx expo start
 ```
 
 Then open the project in Expo Go on a phone, or build a dev client. Dark theme
-only; Android and iOS.
+only. The code is Expo and may run on iOS from source, but only Android is
+built, released and tested.
 
 ## Tests
 
