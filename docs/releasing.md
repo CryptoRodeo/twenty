@@ -32,3 +32,8 @@ The run fails if the tag does not match `app.json`. `versionCode` is derived
 from the tag (`MAJOR*10000 + MINOR*100 + PATCH`), so minor and patch stay
 0-99. Keep `android.package` (`com.local.twenty`) unchanged; changing it makes
 Obtainium treat the app as a different one.
+
+The APK is built for 64-bit ARM (`arm64-v8a`) only, which covers every
+current phone and keeps the download small. It won't install on x86
+emulators or old 32-bit phones; drop `-PreactNativeArchitectures=arm64-v8a`
+from the workflow to build all four.
