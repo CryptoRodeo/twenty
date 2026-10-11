@@ -1,4 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react-native';
+import { readdirSync } from 'fs';
+import { join, relative } from 'path';
 import { AppState } from 'react-native';
 import RootLayout from '../app/_layout';
 
@@ -17,9 +19,10 @@ jest.mock('@/store/useAppStore', () => {
 });
 jest.mock('@/data/db', () => ({ openAppDb: jest.fn(async () => ({})) }));
 jest.mock('@/data/migrations', () => ({ runMigrations: jest.fn(async () => undefined) }));
+const mockScreens: { name: string; options?: { title?: string; headerShown?: boolean } }[] = [];
 jest.mock('expo-router', () => {
-  const Stack = () => null;
-  Stack.Screen = () => null;
+  const Stack = ({ children }: { children: unknown }) => children;
+  Stack.Screen = (props: (typeof mockScreens)[number]) => { mockScreens.push(props); return null; };
   return { Stack };
 });
 jest.mock('expo-status-bar', () => ({ StatusBar: () => null }));
@@ -97,4 +100,20 @@ it('does not show the database error when a foreground re-plan fails', async () 
   expect(screen.queryByText(/Could not open the database/)).toBeNull();
   spy.mockRestore();
   warn.mockRestore();
+});
+
+it('gives every stack screen a title instead of its file path', () => {
+  // Stack routes are every screen file outside the (tabs) group, which has its own layout.
+  const appDir = join(__dirname, '..', 'app');
+  const routes = (readdirSync(appDir, { recursive: true }) as string[])
+    .filter((f) => f.endsWith('.tsx') && !f.startsWith('(tabs)') && !f.endsWith('_layout.tsx'))
+    .map((f) => relative(appDir, join(appDir, f)).replace(/\.tsx$/, ''));
+  mockState.ready = false;
+  mockScreens.length = 0;
+  render(<RootLayout />);
+  for (const route of routes) {
+    const screen = mockScreens.find((s) => s.name === route);
+    expect([route, screen?.options?.headerShown === false || Boolean(screen?.options?.title)])
+      .toEqual([route, true]);
+  }
 });

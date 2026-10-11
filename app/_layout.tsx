@@ -64,6 +64,11 @@ export default function RootLayout() {
         <Stack.Screen name="levelup" options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="settings" options={{ title: 'Settings' }} />
         <Stack.Screen name="onboarding/import" options={{ title: 'Import progress' }} />
+        <Stack.Screen name="timer/setup" options={{ title: 'New workout' }} />
+        <Stack.Screen name="timer/run" options={{ title: 'Workout' }} />
+        <Stack.Screen name="timer/summary" options={{ title: 'Workout summary' }} />
+        <Stack.Screen name="week/edit" options={{ title: 'Edit week' }} />
+        <Stack.Screen name="levels/[order]" options={{ title: 'Level' }} />
       </Stack>
       {(!ready || error !== null) && (
         <View style={styles.overlay} pointerEvents="auto">
