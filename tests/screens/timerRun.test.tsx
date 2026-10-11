@@ -7,9 +7,9 @@ let mockOptions: { onFinish: (s: TimerSnapshot) => void } | null = null;
 const mockEngine = {
   snapshot: {
     status: 'RUNNING', elapsedSec: 44, remainingSec: 1156, clockLabel: '19:16',
-    dueReps: 12, completedReps: 12, repProgress: 0.5, onPaceDelta: 0,
+    completedReps: 12, repProgress: 0.5,
   } as TimerSnapshot,
-  pause: jest.fn(), resume: jest.fn(), adjustReps: jest.fn(), endEarly: jest.fn(),
+  pause: jest.fn(), resume: jest.fn(), endEarly: jest.fn(),
 };
 
 jest.mock('expo-router', () => ({
@@ -39,30 +39,17 @@ describe('timer run screen', () => {
     expect(screen.getByText('12 / 292')).toBeTruthy();
   });
 
-  it('says you are on pace when the delta is zero, and shows the expected reps', () => {
+  it('counts reps on its own — no manual corrections or pace labels', () => {
     render(<TimerRunScreen />);
-    expect(screen.getByText('On pace')).toBeTruthy();
-    expect(screen.getByText('Expected 12')).toBeTruthy();
+    expect(screen.queryByLabelText('Add one rep')).toBeNull();
+    expect(screen.queryByLabelText('Remove one rep')).toBeNull();
+    expect(screen.queryByText(/on pace|ahead|behind|expected/i)).toBeNull();
   });
 
-  it('reports being ahead and behind', () => {
-    mockEngine.snapshot = { ...base, onPaceDelta: 3 };
-    const ahead = render(<TimerRunScreen />);
-    expect(ahead.getByText('3 ahead')).toBeTruthy();
-    ahead.unmount();
-    mockEngine.snapshot = { ...base, onPaceDelta: -2 };
-    const behind = render(<TimerRunScreen />);
-    expect(behind.getByText('2 behind')).toBeTruthy();
-  });
-
-  it('wires pause and the manual corrections', () => {
+  it('wires pause', () => {
     render(<TimerRunScreen />);
     fireEvent.press(screen.getByLabelText('Pause'));
     expect(mockEngine.pause).toHaveBeenCalled();
-    fireEvent.press(screen.getByLabelText('Add one rep'));
-    expect(mockEngine.adjustReps).toHaveBeenCalledWith(1);
-    fireEvent.press(screen.getByLabelText('Remove one rep'));
-    expect(mockEngine.adjustReps).toHaveBeenCalledWith(-1);
   });
 
   it('shows Resume while paused', () => {

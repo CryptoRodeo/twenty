@@ -41,6 +41,7 @@ export default function TimerSetupScreen() {
     <ScrollView
       contentContainerStyle={{ padding: theme.spacing(4) }}
       style={{ backgroundColor: theme.colors.bg }}
+      keyboardShouldPersistTaps="handled"
     >
       <Card title="Movement">
         <View style={{ flexDirection: 'row', gap: theme.spacing(3) }}>

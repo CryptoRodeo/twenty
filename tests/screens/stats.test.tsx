@@ -1,3 +1,4 @@
+import { KeyboardAvoidingView } from 'react-native';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import StatsScreen from '../../app/(tabs)/stats';
 import { makeSession } from '../helpers/factories';
@@ -38,6 +39,12 @@ beforeEach(() => {
 });
 
 describe('stats screen', () => {
+  it('lifts the edit sheet above the keyboard on iOS so Save and Cancel stay reachable', () => {
+    render(<StatsScreen />);
+    fireEvent.press(screen.getByTestId('history-s1'));
+    expect(screen.UNSAFE_getByType(KeyboardAvoidingView).props.behavior).toBe('padding');
+  });
+
   it('shows the four summary tiles', () => {
     render(<StatsScreen />);
     expect(screen.getByText('4B')).toBeTruthy();

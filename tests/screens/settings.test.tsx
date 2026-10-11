@@ -1,3 +1,4 @@
+import { ScrollView } from 'react-native';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import SettingsScreen from '../../app/settings';
 
@@ -32,6 +33,23 @@ beforeEach(() => {
 });
 
 describe('settings', () => {
+  it('saves a typed weekly goal once, when the field is left', async () => {
+    render(<SettingsScreen />);
+    const field = screen.getByLabelText('Minutes per week');
+    fireEvent.changeText(field, '20');
+    fireEvent.changeText(field, '200');
+    expect(mockUpdateSettings).not.toHaveBeenCalled();
+    fireEvent(field, 'blur');
+    await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ weeklyGoalMin: 200 }));
+    expect(mockUpdateSettings).toHaveBeenCalledTimes(1);
+    await act(async () => {});
+  });
+
+  it('lets a tap on a button go through while the keyboard is up', () => {
+    render(<SettingsScreen />);
+    expect(screen.UNSAFE_getByType(ScrollView).props.keyboardShouldPersistTaps).toBe('handled');
+  });
+
   it('marks the working level and changes it through the store', async () => {
     render(<SettingsScreen />);
     expect(screen.getByLabelText('Working level 1C').props.accessibilityState.selected).toBe(true);

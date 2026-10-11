@@ -6,12 +6,10 @@ import {
   formatClock,
   intervalSec,
   isPaused,
-  onPaceDelta,
   pauseClock,
   remainingSec,
   repProgress,
   repStartSec,
-  repsDueAt,
   resumeClock,
   type PacingConfig,
 } from '@/domain/pacing';
@@ -37,25 +35,6 @@ describe('interval math', () => {
   });
 });
 
-describe('repsDueAt', () => {
-  const c = c20(300); // 4.00s per rep
-
-  it('counts rep 1 as due at t=0', () => {
-    expect(repsDueAt(c, 0)).toBe(1);
-  });
-
-  it('advances on each interval boundary', () => {
-    expect(repsDueAt(c, 3.999)).toBe(1);
-    expect(repsDueAt(c, 4)).toBe(2);
-    expect(repsDueAt(c, 11.9)).toBe(3);
-  });
-
-  it('is zero before the start and clamps at the target', () => {
-    expect(repsDueAt(c, -1)).toBe(0);
-    expect(repsDueAt(c, 5000)).toBe(300);
-  });
-});
-
 describe('repProgress', () => {
   const c = c20(300);
 
@@ -68,19 +47,6 @@ describe('repProgress', () => {
 
   it('stays 0 during the count-in', () => {
     expect(repProgress(c, -2)).toBe(0);
-  });
-});
-
-describe('onPaceDelta', () => {
-  const c = c20(300);
-
-  it('is 0 when exactly on pace', () => {
-    expect(onPaceDelta(c, 40, 11)).toBe(0); // 11 due at t=40
-  });
-
-  it('is positive when ahead and negative when behind', () => {
-    expect(onPaceDelta(c, 40, 15)).toBe(4);
-    expect(onPaceDelta(c, 40, 6)).toBe(-5);
   });
 });
 

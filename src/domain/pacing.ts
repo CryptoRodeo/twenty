@@ -22,23 +22,11 @@ export function repStartSec(c: PacingConfig, repNumber: number): number {
   return (repNumber - 1) * intervalSec(c);
 }
 
-/** How many reps should have started by `elapsedSec`, clamped to [0, target]. */
-export function repsDueAt(c: PacingConfig, elapsedSec: number): number {
-  if (elapsedSec < 0) return 0;
-  const due = Math.floor(elapsedSec / intervalSec(c)) + 1;
-  return Math.min(c.targetReps, due);
-}
-
 /** Progress 0..1 through the current rep's interval — drives the pace ring. */
 export function repProgress(c: PacingConfig, elapsedSec: number): number {
   if (elapsedSec < 0) return 0;
   const i = intervalSec(c);
   return (elapsedSec % i) / i;
-}
-
-/** Positive = ahead of pace, negative = behind. */
-export function onPaceDelta(c: PacingConfig, elapsedSec: number, completedReps: number): number {
-  return completedReps - repsDueAt(c, elapsedSec);
 }
 
 export function remainingSec(c: PacingConfig, elapsedSec: number): number {
