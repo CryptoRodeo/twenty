@@ -1,6 +1,6 @@
 {
   "name": "twenty",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "main": "expo-router/entry",
   "dependencies": {
     "@expo/log-box": "^57.0.4",
