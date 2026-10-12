@@ -11,6 +11,13 @@ function pad(n: number): string {
 
 export const DAY_LETTERS: readonly string[] = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
+export const MONTH_LABELS = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+] as const;
+
+const DAY_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
+
 export function toIsoDate(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
@@ -50,3 +57,8 @@ export function monthKey(d: Date): string {
 export const DAY_NAMES: readonly string[] = [
   'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
 ];
+
+/** e.g. "Mon 19 Oct". */
+export function shortDateLabel(d: Date): string {
+  return `${DAY_SHORT[dayIndex(d)]} ${d.getDate()} ${MONTH_LABELS[d.getMonth()]}`;
+}

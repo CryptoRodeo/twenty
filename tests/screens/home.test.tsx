@@ -39,6 +39,7 @@ beforeEach(() => {
       NAVY_SEAL: [{ id: 'b', dayOfWeek: 1, movement: 'NAVY_SEAL', targetReps: 130, isTestDay: false, weekStart: '2026-10-05' }],
     },
     planned: [],
+    newLayoutFrom: null,
   };
   mockProgression = {
     currentLevel: { order: 9, name: '4B' },
@@ -101,6 +102,14 @@ describe('home screen', () => {
     mockProgression = { ...mockProgression, currentLevel: null, nextLevel: { order: 0, name: '1A' } };
     render(<HomeScreen />);
     expect(screen.getByText('CURRENT: NO LEVEL YET')).toBeTruthy();
+  });
+
+  it('says when an edited layout starts, only while part of it waits for next week', () => {
+    render(<HomeScreen />);
+    expect(screen.queryByText(/New layout starts/)).toBeNull();
+    mockWeek = { ...mockWeek, newLayoutFrom: '2026-10-12' };
+    render(<HomeScreen />);
+    expect(screen.getByText('New layout starts Mon 12 Oct')).toBeTruthy();
   });
 
   it('opens Edit Week', () => {

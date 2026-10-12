@@ -5,6 +5,7 @@ import {
   diffDays,
   monthKey,
   parseIsoDate,
+  shortDateLabel,
   toIsoDate,
   weekStartIso,
 } from '@/domain/time';
@@ -53,5 +54,12 @@ describe('DAY_NAMES', () => {
   it('names days Monday-first', () => {
     expect(DAY_NAMES[0]).toBe('Monday');
     expect(DAY_NAMES[6]).toBe('Sunday');
+  });
+});
+
+describe('shortDateLabel', () => {
+  it('formats a date as weekday, day and month', () => {
+    expect(shortDateLabel(new Date(2026, 9, 19))).toBe('Mon 19 Oct');
+    expect(shortDateLabel(new Date(2026, 0, 4))).toBe('Sun 4 Jan');
   });
 });

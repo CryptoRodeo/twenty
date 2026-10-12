@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 import WeekEditScreen from '../../app/week/edit';
 
 const mockBack = jest.fn();
-const mockUpdateSettings = jest.fn().mockResolvedValue(undefined);
+const mockSetPlanDays = jest.fn().mockResolvedValue(undefined);
 const mockSettings = {
   weeklyGoalMin: 80,
   countInSec: 10,
@@ -16,12 +16,25 @@ const mockSettings = {
   ],
 };
 
-jest.mock('expo-router', () => ({ useRouter: () => ({ back: mockBack }) }));
-jest.mock('@/store/useAppStore', () => ({
-  useAppStore: (selector: (s: unknown) => unknown) => selector({ settings: mockSettings, updateSettings: mockUpdateSettings }),
+// This week as Home shows it, matching mockSettings. NOW is Wednesday 7 Oct.
+const NOW = new Date(2026, 9, 7, 7, 0);
+const mockPlanned = mockSettings.planDays.map((d) => ({
+  id: `2026-10-05-${d.dayOfWeek}`, weekStart: '2026-10-05', dayOfWeek: d.dayOfWeek,
+  movement: d.movement, targetReps: 100, isTestDay: false,
 }));
 
-beforeEach(() => jest.clearAllMocks());
+jest.mock('expo-router', () => ({ useRouter: () => ({ back: mockBack }) }));
+jest.mock('@/store/useAppStore', () => ({
+  useAppStore: (selector: (s: unknown) => unknown) =>
+    selector({ settings: mockSettings, planned: mockPlanned, setPlanDays: mockSetPlanDays }),
+}));
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  jest.useFakeTimers({ now: NOW, doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval'] });
+});
+
+afterEach(() => jest.useRealTimers());
 
 describe('edit week', () => {
   it('shows a row for each weekday', () => {
@@ -47,9 +60,18 @@ describe('edit week', () => {
     expect(screen.getByText('100 / 80 min planned')).toBeTruthy();
   });
 
-  it('says changes apply from next week', () => {
+  it('says nothing about next week when every change applies now', () => {
     render(<WeekEditScreen />);
-    expect(screen.getByText('Changes apply from next week.')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('Thursday 6-count'));
+    expect(screen.queryByText(/New layout starts/)).toBeNull();
+  });
+
+  it('says when the layout starts if a past day is changed', () => {
+    render(<WeekEditScreen />);
+    fireEvent.press(screen.getByLabelText('Monday Navy Seal'));
+    expect(screen.getByText('New layout starts Mon 12 Oct')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('Monday 6-count'));
+    expect(screen.queryByText(/New layout starts/)).toBeNull();
   });
 
   it('warns when the two movements are unbalanced', () => {
@@ -62,20 +84,18 @@ describe('edit week', () => {
     render(<WeekEditScreen />);
     fireEvent.press(screen.getByLabelText('Thursday 6-count'));
     fireEvent.press(screen.getByLabelText('Save week'));
-    await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({
-      planDays: [
-        { dayOfWeek: 0, movement: 'SIX_COUNT' },
-        { dayOfWeek: 1, movement: 'NAVY_SEAL' },
-        { dayOfWeek: 2, movement: 'NAVY_SEAL' },
-        { dayOfWeek: 3, movement: 'SIX_COUNT' },
-        { dayOfWeek: 6, movement: 'SIX_COUNT' },
-      ],
-    }));
+    await waitFor(() => expect(mockSetPlanDays).toHaveBeenCalledWith([
+      { dayOfWeek: 0, movement: 'SIX_COUNT' },
+      { dayOfWeek: 1, movement: 'NAVY_SEAL' },
+      { dayOfWeek: 2, movement: 'NAVY_SEAL' },
+      { dayOfWeek: 3, movement: 'SIX_COUNT' },
+      { dayOfWeek: 6, movement: 'SIX_COUNT' },
+    ]));
     await waitFor(() => expect(mockBack).toHaveBeenCalled());
   });
 
   it('shows an inline error and stays put when the save fails', async () => {
-    mockUpdateSettings.mockRejectedValueOnce(new Error('disk full'));
+    mockSetPlanDays.mockRejectedValueOnce(new Error('disk full'));
     render(<WeekEditScreen />);
     fireEvent.press(screen.getByLabelText('Thursday 6-count'));
     fireEvent.press(screen.getByLabelText('Save week'));

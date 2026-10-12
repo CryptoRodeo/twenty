@@ -3,8 +3,10 @@ import {
   DEFAULT_WEEKLY_GOAL_MIN,
   FIRST_WEEK_FRACTION,
   adjustTarget,
+  applyPlanDaysToWeek,
   buildWeek,
   firstWeekTarget,
+  hasDeferredDays,
   nextWeekTargets,
   planWeek,
   plannedSessionId,
@@ -299,5 +301,79 @@ describe('planWeek', () => {
         .toBe(adjustTarget({ previousTarget: 40, achievedReps: 40, effort: 7 }));
       expect(week.find((p) => p.movement === 'NAVY_SEAL')!.targetReps).toBe(20);
     });
+  });
+});
+
+describe('Edit Week on the current week', () => {
+  const WEEK = '2026-10-05';
+  const slot = (dayOfWeek: number, movement: 'SIX_COUNT' | 'NAVY_SEAL', targetReps: number, sessionId?: string) => ({
+    id: plannedSessionId(WEEK, dayOfWeek), weekStart: WEEK, dayOfWeek, movement, targetReps,
+    isTestDay: false, ...(sessionId !== undefined ? { sessionId } : {}),
+  });
+  // Mon 6-count, Tue/Wed Navy Seal, Sun 6-count.
+  const current = [slot(0, 'SIX_COUNT', 200), slot(1, 'NAVY_SEAL', 100), slot(2, 'NAVY_SEAL', 100), slot(6, 'SIX_COUNT', 200)];
+  const fresh = (planDays: { dayOfWeek: number; movement: 'SIX_COUNT' | 'NAVY_SEAL' }[]) =>
+    planDays.map((d) => ({ ...slot(d.dayOfWeek, d.movement, 999) }));
+  const shape = (w: { dayOfWeek: number; movement: string; targetReps: number; sessionId?: string }[]) =>
+    w.map((p) => [p.dayOfWeek, p.movement, p.targetReps, p.sessionId ?? null]);
+  // Thu 6-count and Sat Navy Seal instead of Tue/Wed Navy Seal.
+  const edited = [
+    { dayOfWeek: 0, movement: 'SIX_COUNT' as const }, { dayOfWeek: 3, movement: 'SIX_COUNT' as const },
+    { dayOfWeek: 5, movement: 'NAVY_SEAL' as const }, { dayOfWeek: 6, movement: 'SIX_COUNT' as const },
+  ];
+
+  it('applies the whole layout on Monday with nothing logged, with this week\'s targets', () => {
+    const week = applyPlanDaysToWeek({ weekStart: WEEK, current, fresh: fresh(edited), planDays: edited, today: 0 });
+    expect(shape(week)).toEqual([
+      [0, 'SIX_COUNT', 200, null], [3, 'SIX_COUNT', 200, null],
+      [5, 'NAVY_SEAL', 100, null], [6, 'SIX_COUNT', 200, null],
+    ]);
+    expect(hasDeferredDays(week, edited, 0)).toBe(false);
+  });
+
+  it('keeps past days midweek and applies today onwards', () => {
+    // Wednesday, nothing logged: Mon and Tue stay as planned (missed), Wed onwards change.
+    const week = applyPlanDaysToWeek({ weekStart: WEEK, current, fresh: fresh(edited), planDays: edited, today: 2 });
+    expect(shape(week)).toEqual([
+      [0, 'SIX_COUNT', 200, null], [1, 'NAVY_SEAL', 100, null], [3, 'SIX_COUNT', 200, null],
+      [5, 'NAVY_SEAL', 100, null], [6, 'SIX_COUNT', 200, null],
+    ]);
+    expect(hasDeferredDays(week, edited, 2)).toBe(true);
+  });
+
+  it('keeps logged days, even today and later', () => {
+    const logged = current.map((p) => (p.dayOfWeek === 2 ? { ...p, sessionId: 's1' } : p));
+    const week = applyPlanDaysToWeek({ weekStart: WEEK, current: logged, fresh: fresh(edited), planDays: edited, today: 1 });
+    expect(shape(week)).toEqual([
+      [0, 'SIX_COUNT', 200, null], [2, 'NAVY_SEAL', 100, 's1'], [3, 'SIX_COUNT', 200, null],
+      [5, 'NAVY_SEAL', 100, null], [6, 'SIX_COUNT', 200, null],
+    ]);
+    expect(hasDeferredDays(week, edited, 1)).toBe(true);
+  });
+
+  it('keeps an open row\'s id when its movement changes in place', () => {
+    const swapped = [{ dayOfWeek: 0, movement: 'SIX_COUNT' as const }, { dayOfWeek: 6, movement: 'NAVY_SEAL' as const }];
+    const week = applyPlanDaysToWeek({ weekStart: WEEK, current, fresh: fresh(swapped), planDays: swapped, today: 3 });
+    const sunday = week.find((p) => p.dayOfWeek === 6)!;
+    expect(sunday.id).toBe(plannedSessionId(WEEK, 6));
+    expect([sunday.movement, sunday.targetReps]).toEqual(['NAVY_SEAL', 100]);
+  });
+
+  it('takes a new movement\'s target from the re-planned week when this week has none', () => {
+    const onlySix = [slot(0, 'SIX_COUNT', 200)];
+    const plan = [{ dayOfWeek: 0, movement: 'SIX_COUNT' as const }, { dayOfWeek: 4, movement: 'NAVY_SEAL' as const }];
+    const week = applyPlanDaysToWeek({ weekStart: WEEK, current: onlySix, fresh: fresh(plan), planDays: plan, today: 0 });
+    expect(shape(week)).toEqual([[0, 'SIX_COUNT', 200, null], [4, 'NAVY_SEAL', 999, null]]);
+  });
+
+  it('defers a movement moved onto a past day', () => {
+    // Monday (past on Wednesday) switches to Navy Seal.
+    const plan = DEFAULT_PLAN_DAYS.map((d) => (d.dayOfWeek === 0 ? { ...d, movement: 'NAVY_SEAL' as const } : d));
+    expect(hasDeferredDays(current, plan, 2)).toBe(true);
+    expect(hasDeferredDays(current, DEFAULT_PLAN_DAYS, 2)).toBe(false);
+  });
+
+  it('defers nothing when this week was never planned', () => {
+    expect(hasDeferredDays([], edited, 4)).toBe(false);
   });
 });
