@@ -3,7 +3,7 @@ import { importBackup } from '@/data/backup';
 import type { Db } from '@/data/db';
 import { deleteLevelEventsExcept, upsertLevelEvents } from '@/data/levelEventsRepo';
 import {
-  linkSession, listAllPlanned, listWeek, saveWeek,
+  deletePlanned, linkSession, listAllPlanned, listWeek, saveWeek,
 } from '@/data/plannedRepo';
 import {
   deleteSession, insertSession, insertSessions, listSessions, updateSession,
@@ -12,7 +12,7 @@ import {
   DEFAULT_SETTINGS, getBaseline, getSettings, saveBaseline, saveSettings,
 } from '@/data/settingsRepo';
 import { GRADUATION_ORDER, MOVEMENT_SHORT, MOVEMENTS } from '@/domain/levels';
-import { planWeek } from '@/domain/planner';
+import { applyPlanDaysToWeek, hasDeferredDays, planWeek } from '@/domain/planner';
 import { computeLevelEvents, computeProgression, type ProgressionState } from '@/domain/progression';
 import {
   computeRecords, computeStreakWeeks, computeTotals, weeklyMinutes,
@@ -54,6 +54,11 @@ export interface AppState {
   editSession: (s: Session) => Promise<void>;
   removeSession: (id: string) => Promise<void>;
   updateSettings: (patch: Partial<Settings>) => Promise<void>;
+  /**
+   * Save the Edit Week layout and apply it to this week's days from today on
+   * that have no logged session; past and logged days change from next week.
+   */
+  setPlanDays: (planDays: PlanDay[]) => Promise<void>;
   /**
    * Choose the level being worked on, then restart this week's open slots with
    * the first-week rule. Completes nothing. Seeding flows call this LAST.
@@ -147,7 +152,7 @@ async function replanOpenSlots(
   const existing = await listWeek(db, weekStartIso(now));
   const open = existing.filter((p) => p.sessionId === undefined);
   if (open.length === 0) return;
-  // Edit Week applies from next week: keep this week's day/movement layout.
+  // Keep this week's day/movement layout: Edit Week (setPlanDays) owns changing it.
   const layout = existing.map((p) => ({ dayOfWeek: p.dayOfWeek, movement: p.movement }));
   const fresh = await buildWeek(db, state, now, layout, opts.restart === true);
   const updates: PlannedSession[] = [];
@@ -267,6 +272,32 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ settings: next });
   },
 
+  setPlanDays: async (planDays) => {
+    const db = requireDb(get());
+    const now = new Date();
+    const weekStart = weekStartIso(now);
+    const current = await listWeek(db, weekStart);
+    // An unplanned week is left to ensureWeek, which plans it from planDays whole.
+    let week: PlannedSession[] = [];
+    if (current.length > 0) {
+      const state = get();
+      const fresh = await buildWeek(db, state, now, planDays, state.settings.restartWeek === weekStart);
+      week = applyPlanDaysToWeek({ weekStart, current, fresh, planDays, today: dayIndex(now) });
+    }
+    const kept = new Set(week.map((p) => p.id));
+    await db.execAsync('BEGIN');
+    try {
+      await saveSettings(db, { ...get().settings, planDays });
+      await deletePlanned(db, current.filter((p) => !kept.has(p.id)).map((p) => p.id));
+      await saveWeek(db, week);
+      await db.execAsync('COMMIT');
+    } catch (e) {
+      await db.execAsync('ROLLBACK');
+      throw e;
+    }
+    await get().reload();
+  },
+
   setTargetLevel: async (order) => {
     const db = requireDb(get());
     if (!Number.isInteger(order) || order < 0 || order > GRADUATION_ORDER) {
@@ -355,6 +386,8 @@ export interface WeekView {
   byMovement: MovementMap<PlannedSession[]>;
   minutesDone: number;
   goalMin: number;
+  /** Next Monday (ISO) when part of the Edit Week layout waits for next week, else null. */
+  newLayoutFrom: string | null;
 }
 
 export function selectWeek(s: AppState, now: Date): WeekView {
@@ -365,7 +398,7 @@ export function selectWeek(s: AppState, now: Date): WeekView {
   const days: WeekDayView[] = DAY_LETTERS.map((letter, d) => {
     const slot = planned.find((p) => p.dayOfWeek === d) ?? null;
     // Same source as Train: only this week's planned rows. No slot = rest day,
-    // even when Edit Week has added the day from next week.
+    // even when Edit Week has added a past day from next week.
     const movement = slot?.movement ?? null;
     return {
       dayOfWeek: d,
@@ -390,6 +423,9 @@ export function selectWeek(s: AppState, now: Date): WeekView {
     byMovement,
     minutesDone: weeklyMinutes(s.sessions, weekStart),
     goalMin: s.settings.weeklyGoalMin,
+    newLayoutFrom: hasDeferredDays(planned, s.settings.planDays, today)
+      ? toIsoDate(addDays(parseIsoDate(weekStart), 7))
+      : null,
   };
 }
 

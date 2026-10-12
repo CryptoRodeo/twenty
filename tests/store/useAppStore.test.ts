@@ -761,3 +761,60 @@ describe('re-plan keeps restored row ids (I1)', () => {
     expect(week[1]!.targetReps).toBe(Math.ceil(LEVELS[2]!.targets.NAVY_SEAL * FIRST_WEEK_FRACTION));
   });
 });
+
+describe('setPlanDays (Edit Week)', () => {
+  afterEach(() => jest.useRealTimers());
+  const fakeNow = (now: Date) =>
+    jest.useFakeTimers({ now, doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval'] });
+  // Thu 6-count, Sat Navy Seal instead of Tue/Wed Navy Seal.
+  const EDITED = [
+    { dayOfWeek: 0, movement: 'SIX_COUNT' as const }, { dayOfWeek: 3, movement: 'SIX_COUNT' as const },
+    { dayOfWeek: 5, movement: 'NAVY_SEAL' as const }, { dayOfWeek: 6, movement: 'SIX_COUNT' as const },
+  ];
+  const layout = async () => (await listWeek(db, '2026-10-05')).map((p) => [p.dayOfWeek, p.movement]);
+
+  it('applies the whole new layout on Monday with nothing logged', async () => {
+    const monday = new Date(2026, 9, 5, 7, 0);
+    fakeNow(monday);
+    await useAppStore.getState().ensureWeek(monday);
+    await useAppStore.getState().setPlanDays(EDITED);
+    expect(await layout()).toEqual([[0, 'SIX_COUNT'], [3, 'SIX_COUNT'], [5, 'NAVY_SEAL'], [6, 'SIX_COUNT']]);
+    expect(useAppStore.getState().settings.planDays).toEqual(EDITED);
+    expect(selectWeek(useAppStore.getState(), monday).newLayoutFrom).toBeNull();
+  });
+
+  it('midweek, keeps past and logged days and says when the full layout starts', async () => {
+    fakeNow(NOW);
+    await useAppStore.getState().ensureWeek(NOW);
+    await useAppStore.getState().addSession({
+      movement: 'NAVY_SEAL', startedAt: NOW.toISOString(), durationSec: 1200,
+      targetReps: 1, completedReps: 40, effort: 6, kind: 'GUIDED',
+    });
+    await useAppStore.getState().setPlanDays(EDITED);
+    // Mon/Tue are past, Wed is logged: all kept. Thu onwards follow the edit.
+    expect(await layout()).toEqual([
+      [0, 'SIX_COUNT'], [1, 'NAVY_SEAL'], [2, 'NAVY_SEAL'], [3, 'SIX_COUNT'], [5, 'NAVY_SEAL'], [6, 'SIX_COUNT'],
+    ]);
+    expect((await listWeek(db, '2026-10-05')).find((p) => p.dayOfWeek === 2)!.sessionId).toBeDefined();
+    const view = selectWeek(useAppStore.getState(), NOW);
+    expect(view.days[3]!.movement).toBe('SIX_COUNT');
+    expect(view.newLayoutFrom).toBe('2026-10-12');
+  });
+
+  it('plans next week from the full new layout', async () => {
+    fakeNow(NOW);
+    await useAppStore.getState().ensureWeek(NOW);
+    await useAppStore.getState().setPlanDays(EDITED);
+    const nextMonday = new Date(2026, 9, 12, 7, 0);
+    await useAppStore.getState().ensureWeek(nextMonday);
+    expect((await listWeek(db, '2026-10-12')).map((p) => p.dayOfWeek)).toEqual([0, 3, 5, 6]);
+    expect(selectWeek(useAppStore.getState(), nextMonday).newLayoutFrom).toBeNull();
+  });
+
+  it('saves the plan days without planning a week that has no rows yet', async () => {
+    fakeNow(NOW);
+    await useAppStore.getState().setPlanDays(EDITED);
+    expect(await listWeek(db, '2026-10-05')).toEqual([]);
+    expect(useAppStore.getState().settings.planDays).toEqual(EDITED);
+  });
+});

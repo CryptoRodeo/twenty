@@ -10,7 +10,7 @@ import { ProgressBar } from '@/components/ProgressBar';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { LEVELS, MOVEMENTS, MOVEMENT_LABEL } from '@/domain/levels';
 import { ZERO_BASELINE, graduationWarning } from '@/domain/progression';
-import { DAY_NAMES } from '@/domain/time';
+import { DAY_NAMES, parseIsoDate, shortDateLabel } from '@/domain/time';
 import { selectProgression, selectWeek, useAppStore } from '@/store/useAppStore';
 import { theme } from '@/theme';
 
@@ -105,6 +105,11 @@ export default function HomeScreen() {
           {`${week.minutesDone} / ${week.goalMin} min`}
         </Text>
         <ProgressBar value={week.minutesDone} max={week.goalMin} />
+        {week.newLayoutFrom !== null && (
+          <Text style={{ ...theme.font.body, color: theme.colors.textDim, marginTop: theme.spacing(2) }}>
+            {`New layout starts ${shortDateLabel(parseIsoDate(week.newLayoutFrom))}`}
+          </Text>
+        )}
 
         <View style={{ flexDirection: 'row', gap: theme.spacing(4), marginTop: theme.spacing(4) }}>
           {MOVEMENTS.map((m) => (

@@ -1,12 +1,7 @@
 import { MOVEMENTS, ZERO_REPS } from './levels';
 import { bestLandmark } from './progression';
-import { addDays, monthKey, parseIsoDate, toIsoDate, weekStartIso } from './time';
+import { MONTH_LABELS, addDays, monthKey, parseIsoDate, toIsoDate, weekStartIso } from './time';
 import type { Baseline, Movement, MovementMap, Session } from './types';
-
-const MONTH_LABELS = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-] as const;
 
 export interface Totals {
   total: number;

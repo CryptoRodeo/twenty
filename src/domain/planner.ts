@@ -181,3 +181,74 @@ export function planWeek(input: PlanWeekInput): PlannedSession[] {
 
   return buildWeek({ weekStart: input.weekStart, planDays: input.planDays, targets, landmarks });
 }
+
+/** A day Edit Week cannot rewrite this week: already past, or a session is logged on it. */
+function isLockedDay(slot: PlannedSession | undefined, dayOfWeek: number, today: number): boolean {
+  return dayOfWeek < today || slot?.sessionId !== undefined;
+}
+
+export interface ApplyPlanDaysInput {
+  weekStart: string;
+  /** This week's planned rows. */
+  current: PlannedSession[];
+  /** This week planned from `planDays`; supplies targets for a movement this week has no slot of. */
+  fresh: PlannedSession[];
+  planDays: PlanDay[];
+  /** dayIndex of today. */
+  today: number;
+}
+
+/**
+ * Apply an Edit Week change to the current week. Days from today on with no
+ * logged session take the new layout; past and logged days keep their slot, so
+ * nothing already shown is lost (`hasDeferredDays` reports what waits for next
+ * week). A slot that moves to a new day takes this week's target for its
+ * movement (its last slot by day), so the week stays consistent.
+ */
+export function applyPlanDaysToWeek(input: ApplyPlanDaysInput): PlannedSession[] {
+  const { current, fresh, today } = input;
+  const week: PlannedSession[] = [];
+  for (let day = 0; day < 7; day++) {
+    const slot = current.find((p) => p.dayOfWeek === day);
+    if (isLockedDay(slot, day, today)) {
+      if (slot) week.push(slot);
+      continue;
+    }
+    const want = input.planDays.find((d) => d.dayOfWeek === day);
+    if (!want) continue;
+    if (slot?.movement === want.movement) {
+      week.push(slot);
+      continue;
+    }
+    const model = current
+      .filter((p) => p.movement === want.movement)
+      .sort((a, b) => b.dayOfWeek - a.dayOfWeek)[0]
+      ?? fresh.find((p) => p.dayOfWeek === day && p.movement === want.movement);
+    if (!model) continue;
+    week.push({
+      id: slot?.id ?? plannedSessionId(input.weekStart, day),
+      weekStart: input.weekStart,
+      dayOfWeek: day,
+      movement: want.movement,
+      targetReps: model.targetReps,
+      isTestDay: model.isTestDay,
+    });
+  }
+  return week;
+}
+
+/**
+ * Whether part of `planDays` waits for next week: a past or logged day whose
+ * slot differs from it. False when this week was never planned (it will be
+ * planned from `planDays` whole).
+ */
+export function hasDeferredDays(current: PlannedSession[], planDays: PlanDay[], today: number): boolean {
+  if (current.length === 0) return false;
+  for (let day = 0; day < 7; day++) {
+    const slot = current.find((p) => p.dayOfWeek === day);
+    if (!isLockedDay(slot, day, today)) continue;
+    const want = planDays.find((d) => d.dayOfWeek === day);
+    if ((slot?.movement ?? null) !== (want?.movement ?? null)) return true;
+  }
+  return false;
+}

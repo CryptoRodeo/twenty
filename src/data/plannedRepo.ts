@@ -61,3 +61,9 @@ export async function listAllPlanned(db: Db): Promise<PlannedSession[]> {
 export async function linkSession(db: Db, plannedId: string, sessionId: string): Promise<void> {
   await db.runAsync('UPDATE planned_sessions SET session_id = ? WHERE id = ?', [sessionId, plannedId]);
 }
+
+export async function deletePlanned(db: Db, ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const marks = ids.map(() => '?').join(',');
+  await db.runAsync(`DELETE FROM planned_sessions WHERE id IN (${marks})`, ids);
+}
